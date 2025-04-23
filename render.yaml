@@ -3,14 +3,17 @@ services:
     name: vibechess
     env: python
     buildCommand: |
+      # 安装Python依赖
+      pip install -r requirements.txt
       # 使用自定义脚本安装Stockfish
       chmod +x ./install_stockfish.sh
       ./install_stockfish.sh
-      # 安装Python依赖
-      pip install -r requirements.txt
+      # 显示当前目录结构
+      echo "Current directory structure:"
+      find . -type f -name "stockfish" | xargs ls -la
+      # 显示环境变量
+      echo "STOCKFISH_PATH=$STOCKFISH_PATH"
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
-      - key: STOCKFISH_PATH
-        value: /opt/render/project/bin/stockfish

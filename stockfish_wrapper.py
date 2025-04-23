@@ -55,15 +55,37 @@ class StockfishWrapper:
     
     def _find_stockfish_path(self):
         """查找Stockfish引擎路径"""
-        # 首先检查环境变量
+        # 首先检查项目中的bin目录
+        project_bin = Path(__file__).parent / "bin" / "stockfish"
+        if project_bin.exists() and os.access(str(project_bin), os.X_OK):
+            path = str(project_bin)
+            print(f"从项目的bin目录找到Stockfish: {path}", file=sys.stderr)
+            return path
+            
+        # 然后检查环境变量
         if 'STOCKFISH_PATH' in os.environ:
             path = os.environ['STOCKFISH_PATH']
             print(f"从环境变量找到Stockfish路径: {path}", file=sys.stderr)
             return path
         
+        # 检查.env.stockfish文件
+        env_file = Path(__file__).parent / ".env.stockfish"
+        if env_file.exists():
+            try:
+                with open(env_file, 'r') as f:
+                    for line in f:
+                        if line.startswith('STOCKFISH_PATH='):
+                            path = line.strip().split('=', 1)[1]
+                            if os.path.exists(path) and os.access(path, os.X_OK):
+                                print(f"从.env.stockfish文件找到Stockfish路径: {path}", file=sys.stderr)
+                                return path
+            except Exception as e:
+                print(f"读取.env.stockfish文件时出错: {e}", file=sys.stderr)
+        
         # 检查常见路径
         common_paths = [
-            '/opt/render/project/bin/stockfish',  # 我们自定义安装的位置
+            './bin/stockfish',                    # 项目的bin目录（相对路径）
+            '/opt/render/project/src/bin/stockfish', # Render环境中的项目路径
             '/usr/games/stockfish',               # Debian/Ubuntu位置
             '/usr/bin/stockfish',                 # Linux常见位置
             '/usr/local/bin/stockfish',           # macOS常见位置
