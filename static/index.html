@@ -1,0 +1,2527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess AI</title>
+  <link rel="stylesheet" href="./chessboardjs-1.0.0/css/chessboard-1.0.0.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    :root {
+      --primary: #4361ee;
+      --primary-light: #5671f5;
+      --secondary: #6366f1;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --dark: #1f2937;
+      --light: #f9fafb;
+      --gray: #6b7280;
+      --card-bg: #ffffff;
+      --body-bg: #f3f4f6;
+      --sidebar-bg: #1e293b;
+      --board-border: #ddd;
+      --highlight: rgba(79, 70, 229, 0.3);
+      --highlight-border: rgba(79, 70, 229, 0.8);
+      --move-highlight: rgba(249, 168, 37, 0.25);
+      --move-highlight-border: rgba(249, 168, 37, 0.7);
+      --dot-color: rgba(16, 185, 129, 0.8);
+      --border-radius: 12px;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      --transition: all 0.3s ease;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--body-bg);
+      color: var(--dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+    
+    .header {
+      background: var(--card-bg);
+      box-shadow: var(--shadow);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    
+    .logo i {
+      font-size: 1.75rem;
+    }
+    
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .control-label {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--gray);
+    }
+    
+    select, button {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      background: var(--light);
+      font-size: 0.9rem;
+      font-family: inherit;
+      transition: var(--transition);
+      cursor: pointer;
+      outline: none;
+    }
+    
+    select:hover, button:hover {
+      border-color: var(--primary-light);
+    }
+    
+    select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+    }
+    
+    button {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+    }
+    
+    button.primary {
+      background: var(--primary);
+      color: white;
+      border: none;
+    }
+    
+    button.primary:hover {
+      background: var(--primary-light);
+      transform: translateY(-1px);
+    }
+    
+    button.primary:active {
+      transform: translateY(0);
+    }
+    
+    button.secondary {
+      background: var(--light);
+      color: var(--dark);
+      border: 1px solid #e5e7eb;
+    }
+    
+    button.secondary:hover {
+      background: #e5e7eb;
+      border-color: var(--gray);
+    }
+    
+    .container {
+      max-width: 1400px;
+      width: 100%;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      display: grid;
+      grid-template-columns: 300px 1fr 300px;
+      gap: 2rem;
+    }
+    
+    .sidebar {
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 14rem);
+      position: sticky;
+      top: 5.5rem;
+    }
+    
+    .sidebar-header {
+      padding: 1.25rem;
+      background: var(--sidebar-bg);
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .sidebar-icon {
+      font-size: 1.25rem;
+      color: var(--warning);
+    }
+    
+    .sidebar-title {
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+    
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+    
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      position: relative;
+    }
+    
+    .chat-bubbles {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 150px; /* 为人物形象留出空间 */
+      position: relative;
+    }
+    
+    .character-wrapper {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 150px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+    
+    .character-image {
+      height: 150px;
+      width: auto;
+      z-index: 1;
+    }
+    
+    .chat-message {
+      position: relative;
+      margin-bottom: 1rem;
+      padding: 0.75rem 1rem;
+      background: #fff;
+      border-radius: 1.25rem;
+      box-shadow: var(--shadow-sm);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      animation: fadeIn 0.3s ease;
+      max-width: 85%;
+      margin-left: auto;
+      margin-right: 10%;
+      color: #333;
+      background-image: url('images/talk.png');
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      border: none;
+    }
+    
+    .chat-message:after {
+      content: none; /* 移除之前的三角形，使用背景图片代替 */
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .main-content {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    
+    .board-container {
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-md);
+    }
+    
+    .board-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    
+    .eval {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: var(--dark);
+    }
+    
+    .message {
+      color: var(--danger);
+      font-size: 0.9rem;
+      min-height: 1.2em;
+    }
+    
+    #board {
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+      border: 2px solid var(--board-border);
+      border-radius: 4px;
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .history-container {
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+    }
+    
+    .history-header {
+      font-weight: 500;
+      margin-bottom: 0.75rem;
+      color: var(--gray);
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    #history {
+      font-family: 'Roboto Mono', monospace;
+      line-height: 1.6;
+      font-size: 0.95rem;
+      color: var(--dark);
+      word-wrap: break-word;
+    }
+    
+    .scoreList {
+      list-style: none;
+    }
+    
+    .scoreList li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.5rem;
+      background: #f1f5f9;
+      border-radius: 0.75rem;
+      font-size: 0.95rem;
+      transition: var(--transition);
+    }
+    
+    .scoreList li:hover {
+      background: #e0e7ff;
+    }
+    
+    .scoreList li.champion {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      color: white;
+      font-weight: 500;
+      box-shadow: 0 4px 6px -1px rgba(251, 191, 36, 0.4);
+    }
+    
+    .scoreList li .piece-id {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .scoreList li .score {
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 0.25rem 0.75rem;
+      border-radius: 1rem;
+    }
+    
+    #postGameControls {
+      padding: 1rem;
+      text-align: center;
+      display: none;
+    }
+    
+    /* 棋盘高亮 */
+    .dot {
+      width: 16px;
+      height: 16px;
+      background: var(--dot-color);
+      border-radius: 50%;
+      position: absolute;
+      pointer-events: none;
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+      z-index: 10;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(0.8); opacity: 0.8; }
+      50% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(0.8); opacity: 0.8; }
+    }
+    
+    .selected {
+      box-shadow: inset 0 0 0 4px var(--highlight-border) !important;
+      background: var(--highlight) !important;
+    }
+    
+    .last-from, .last-to {
+      background: var(--move-highlight) !important;
+      box-shadow: inset 0 0 0 3px var(--move-highlight-border) !important;
+    }
+    
+    /* 游戏结束弹窗 */
+    #gameOverOverlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    #gameOverBox {
+      background: white;
+      padding: 2rem;
+      border-radius: var(--border-radius);
+      text-align: center;
+      box-shadow: var(--shadow-xl);
+      max-width: 400px;
+      width: 90%;
+      animation: zoomIn 0.3s ease;
+    }
+    
+    @keyframes zoomIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    
+    #gameOverText {
+      font-size: 2rem;
+      margin: 0 0 2rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    
+    #gameOverBox button {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      background: var(--success);
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    
+    #gameOverBox button:hover {
+      background: #0ca678;
+      transform: translateY(-2px);
+    }
+    
+    /* 骑士猫咪悬浮图片 */
+    .cat-overlay {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      pointer-events: none;
+      z-index: 100;
+      animation: catAppear 0.3s ease-out;
+    }
+    
+    @keyframes catAppear {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    /* 响应式适配 */
+    @media (max-width: 1200px) {
+      .container {
+        grid-template-columns: 250px 1fr 250px;
+        gap: 1rem;
+      }
+    }
+    
+    @media (max-width: 992px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+      
+      .sidebar {
+        height: 300px;
+        position: static;
+      }
+    }
+    
+    @media (max-width: 640px) {
+      .header {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+      }
+      
+      .controls {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1rem;
+      }
+      
+      .container {
+        margin: 1rem auto;
+      }
+    }
+    
+    /* 爆炸效果 */
+    .explosion {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      width: 48px;
+      height: 48px;
+      background: radial-gradient(circle, #ff9500, transparent 80%);
+      border-radius: 50%;
+      animation: explode 1.5s forwards;
+      z-index: 100;
+    }
+    
+    @keyframes explode {
+      0% { opacity: 0; width: 0; height: 0; }
+      10% { opacity: 1; width: 48px; height: 48px; }
+      80% { opacity: 0.8; width: 64px; height: 64px; }
+      100% { opacity: 0; width: 70px; height: 70px; }
+    }
+    
+    /* 国王吃子效果 */
+    .king-capture-effect {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, rgba(255,215,0,0.3) 0%, rgba(218,165,32,0.1) 70%);
+      border: 2px solid gold;
+      z-index: 100;
+      animation: king-glow 1s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+    
+    @keyframes king-glow {
+      from { box-shadow: 0 0 5px gold, inset 0 0 5px gold; }
+      to { box-shadow: 0 0 20px gold, inset 0 0 10px gold; }
+    }
+    
+    /* 游戏进行中状态样式 */
+    .game-in-progress #variantState,
+    .game-in-progress #side {
+      opacity: 0.6;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    
+    .game-in-progress .variant-state-locked {
+      display: inline-block;
+    }
+    
+    .variant-state-locked {
+      display: none;
+      margin-left: 8px;
+      color: #dc3545;
+      font-size: 0.8rem;
+      animation: pulse-lock 2s infinite;
+    }
+    
+    @keyframes pulse-lock {
+      0% { opacity: 0.7; }
+      50% { opacity: 1; }
+      100% { opacity: 0.7; }
+    }
+    
+    /* 添加冻结效果样式 */
+    .frozen-effect {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 162, 255, 0.4);
+      z-index: 10;
+      border-radius: 5px;
+      animation: bonus-glow 2.5s ease-in-out;
+    }
+    
+    @keyframes bonus-glow {
+      0% { background-color: rgba(255, 215, 0, 0); box-shadow: 0 0 5px gold; }
+      40% { background-color: rgba(255, 215, 0, 0.3); box-shadow: 0 0 15px gold; }
+      60% { background-color: rgba(255, 215, 0, 0.3); box-shadow: 0 0 15px gold; }
+      100% { background-color: rgba(255, 215, 0, 0); box-shadow: 0 0 5px gold; }
+    }
+    
+    /* 高亮显示可以连续移动的棋子 */
+    .highlight-bonus-piece {
+      box-shadow: inset 0 0 20px gold;
+      animation: highlight-bonus 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes highlight-bonus {
+      0% { box-shadow: inset 0 0 10px gold; }
+      50% { box-shadow: inset 0 0 25px gold; }
+      100% { box-shadow: inset 0 0 10px gold; }
+    }
+    
+    /* 变体G转换效果 */
+    .transform-effect {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(255, 215, 0, 0.2);
+      border: 2px solid gold;
+      z-index: 10;
+      border-radius: 5px;
+      animation: transform-glow 2.5s ease-in-out;
+    }
+    
+    @keyframes transform-glow {
+      0% { background-color: rgba(255, 215, 0, 0); box-shadow: 0 0 5px gold; }
+      40% { background-color: rgba(255, 215, 0, 0.4); box-shadow: 0 0 20px gold; }
+      60% { background-color: rgba(255, 215, 0, 0.4); box-shadow: 0 0 20px gold; }
+      100% { background-color: rgba(255, 215, 0, 0); box-shadow: 0 0 5px gold; }
+    }
+    
+    /* 高亮显示变换后的棋子 */
+    .highlight-transform {
+      box-shadow: inset 0 0 20px #ff4500;
+      animation: highlight-transform 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes highlight-transform {
+      0% { box-shadow: inset 0 0 10px #ff4500; }
+      50% { box-shadow: inset 0 0 25px #ff4500; }
+      100% { box-shadow: inset 0 0 10px #ff4500; }
+    }
+    
+    /* 变体D国王吃子效果 */
+    .vanish-effect {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      left: 0;
+      top: 0;
+      background: radial-gradient(circle, rgba(255, 0, 0, 0.7) 0%, rgba(255, 165, 0, 0.5) 50%, rgba(255, 255, 0, 0.2) 100%);
+      animation: vanish 1s ease-out forwards;
+      z-index: 100;
+      pointer-events: none;
+    }
+    
+    @keyframes vanish {
+      0% {
+        transform: scale(0.2);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1);
+        opacity: 0.8;
+      }
+      100% {
+        transform: scale(1.5);
+        opacity: 0;
+      }
+    }
+    
+    /* 冻结效果 */
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">
+      <i class="fas fa-chess-knight"></i>
+      <span>Chess AI Battle</span>
+    </div>
+    <div class="controls">
+      <div class="control-group">
+        <label class="control-label">AI Level</label>
+        <select id="level">
+          <option>0</option><option>1</option><option>2</option><option>3</option>
+          <option>4</option><option selected>5</option><option>6</option><option>7</option>
+          <option>8</option><option>9</option><option>10</option><option>11</option>
+          <option>12</option><option>13</option><option>14</option><option>15</option>
+          <option>16</option><option>17</option><option>18</option><option>19</option>
+          <option>20</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label class="control-label">Your Side</label>
+        <select id="side">
+          <option value="white">White</option>
+          <option value="black">Black</option>
+        </select>
+      </div>
+      <!-- <div class="control-group">
+        <label for="variantState" class="control-label">变体规则:</label>
+        <select id="variantState">
+          <option value="normal">无变体</option>
+          <option value="A">变体A (兵可斜走)</option>
+          <option value="B">变体B (象可直走)</option>
+          <option value="D">变体D (特殊棋子反制)</option>
+          <option value="E">变体E (棋子冻结)</option>
+          <option value="F">变体F (玩家的车/象/马吃掉敌方棋子后有50%几率连续走棋)</option>
+          <option value="G">变体G (车/象/马吃掉敌方的兵/车/象/马后有99%几率将其变为己方棋子并随机重生，一局最多3次)</option>
+        </select>
+      </div> -->
+      <div class="control-group">
+        <label for="twitterUsername" class="control-label">Twitter用户:</label>
+        <input type="text" id="twitterUsername" placeholder="输入用户名" style="width: 120px;">
+        <button id="twitterQueryBtn" class="primary">
+          <i class="fas fa-search"></i> 查询
+        </button>
+        <!-- <button id="viewRankBtn" class="secondary">
+          <i class="fas fa-star"></i> 查看评级
+        </button> -->
+        <!-- <button id="refreshTokenBtn" class="secondary">
+          <i class="fas fa-sync-alt"></i> 刷新Token
+        </button> -->
+        <!-- <button id="viewDataBtn" class="secondary">
+          <i class="fas fa-database"></i> 查看数据 -->
+        <!-- </button> -->
+      </div>
+      <div class="control-group">
+        <button id="startMatchBtn" class="primary" style="background-color: #28a745; font-weight: bold;">
+          <i class="fas fa-play-circle"></i> 开始比赛
+        </button>
+        <button id="resetBtn" class="primary">
+          <i class="fas fa-redo"></i> 重置游戏
+        </button>
+        <!-- <button id="viewMatchHistoryBtn" class="secondary">
+          <i class="fas fa-history"></i> 比赛记录
+        </button> -->
+        <!-- <button id="viewRandomMoveConfig" class="secondary">
+          <i class="fas fa-dice"></i> 随机配置
+        </button> -->
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <i class="fas fa-comment-dots sidebar-icon"></i>
+        <span class="sidebar-title">AI Commentary</span>
+      </div>
+      <div class="sidebar-content">
+        <div class="chat-container">
+          <div id="chatContent" class="chat-bubbles">
+            <!-- 聊天气泡会被添加到这里 -->
+          </div>
+          <div class="character-wrapper">
+            <img src="images/girl.png" class="character-image" alt="Commentary Character">
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="main-content">
+      <div class="board-container">
+        <div class="board-header">
+          <div class="eval">—</div>
+          <div class="message"></div>
+        </div>
+        <div id="board"></div>
+        <div id="variantInfo" class="variant-state-info" style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: #666;">
+          标准国际象棋规则
+        </div>
+      </div>
+      
+      <div class="history-container">
+        <div class="history-header">
+          <i class="fas fa-history"></i>
+          Move History
+        </div>
+        <div id="history">Moves:</div>
+      </div>
+    </div>
+    
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <i class="fas fa-trophy sidebar-icon"></i>
+        <span class="sidebar-title">Vibing Leaderboard</span>
+      </div>
+      <div class="sidebar-content">
+        <ul id="scoreList" class="scoreList"></ul>
+        <div id="postGameControls">
+          <button id="restartBtn" class="primary">
+            <i class="fas fa-play"></i>
+            Play Again
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="gameOverOverlay">
+    <div id="gameOverBox">
+      <p id="gameOverText"></p>
+      <button id="gameOverShowLeaderboard">View Scores</button>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script src="./chessboardjs-1.0.0/js/chessboard-1.0.0.min.js"></script>
+  <script>
+  $(function() {
+    // 系统变量
+    let sideDiv, board;
+    let game = new Chess();
+    let pieceMap = {};
+    let scoreMap = {};
+    let values = {'p':1,'n':3,'b':3,'r':5,'q':9};
+    let selected = null;
+    let lastMove = {from:null, to:null};
+    let awaitingAI = false;
+    let gameOver = false;
+    let matchStarted = false;
+    let currentVariantState = 'normal';
+    let bonusMoveSquare = null;  // 记录可以连续走棋的特定棋子位置
+    
+    function updateVariantStateInfo() {
+      let info = '';
+      switch(currentVariantState) {
+        case 'A':
+          info = '变体A: 兵可以斜着走一格（不吃子）';
+          break;
+        case 'B':
+          info = '变体B: 象可以直线走一格';
+          break;
+        case 'D':
+          info = '变体D: 当玩家的特殊棋子(车/马/象/后)被吃时，吃子的AI棋子有50%几率自爆（国王除外）';
+          break;
+        case 'E':
+          info = '变体E: 当玩家的棋子被AI吃掉时，吃子的AI棋子有99%几率被冻结一回合（无法移动）';
+          break;
+        case 'F':
+          info = '变体F: 玩家的车/象/马吃掉敌方棋子后有50%几率连续走棋';
+          break;
+        case 'G':
+          info = '变体G: 车/象/马吃掉敌方的兵/车/象/马后有99%几率将其变为己方棋子并随机重生，一局最多3次';
+          break;
+        default:
+          info = '标准国际象棋规则';
+      }
+      info += '<br><span style="color:#fd7e14; font-style:italic;">棋子的随机走位概率基于Twitter用户评级动态调整</span>';
+      $('#variantInfo').html(info);
+    }
+
+    function initPieces() {
+      pieceMap = {}; scoreMap = {};
+      const counts = {};
+      ['wP','wN','wB','wR','wQ','wK','bP','bN','bB','bR','bQ','bK']
+        .forEach(k=>counts[k]=0);
+      game.SQUARES.forEach(sq => {
+        const p = game.get(sq);
+        if (p) {
+          const key = p.color + p.type.toUpperCase();
+          counts[key]++;
+          const id = `${key}${counts[key]}`;
+          pieceMap[sq] = id;
+          scoreMap[id] = 0;
+        }
+      });
+      updateLeaderboard();
+    }
+
+    function updateLeaderboard() {
+      const items = Object.entries(scoreMap)
+        .sort((a,b)=>b[1]-a[1])
+        .map(([id,sc], idx) => {
+          const cls = idx === 0 ? 'champion' : '';
+          const icon = id.startsWith('w') ? 
+            '<i class="fas fa-chess-' + getPieceIcon(id) + '" style="color:#333;"></i>' :
+            '<i class="fas fa-chess-' + getPieceIcon(id) + '" style="color:#666;"></i>';
+          return `<li class="${cls}"><span class="piece-id">${icon} ${id}</span><span class="score">${sc}</span></li>`;
+        }).join('');
+      $('#scoreList').html(items);
+    }
+
+    function getPieceIcon(id) {
+      const type = id.charAt(1).toLowerCase();
+      switch(type) {
+        case 'p': return 'pawn';
+        case 'n': return 'knight';
+        case 'b': return 'bishop';
+        case 'r': return 'rook';
+        case 'q': return 'queen';
+        case 'k': return 'king';
+        default: return 'pawn';
+      }
+    }
+
+    function appendHistory(txt) {
+      $('#history').text($('#history').text() + ' ' + txt);
+    }
+
+    function clearHighlights() {
+      $('.dot').remove();
+      $('.selected').removeClass('selected');
+      if (lastMove.from) $('.square-' + lastMove.from).removeClass('last-from');
+      if (lastMove.to)   $('.square-' + lastMove.to).removeClass('last-to');
+    }
+
+    function highlightLast(from, to) {
+      if (lastMove.from) $('.square-' + lastMove.from).removeClass('last-from');
+      if (lastMove.to)   $('.square-' + lastMove.to).removeClass('last-to');
+      lastMove = { from, to };
+      $('.square-' + from).addClass('last-from');
+      $('.square-' + to).addClass('last-to');
+    }
+
+    function showDots(moves) {
+      $('.dot').remove();
+      moves.forEach(m => {
+        const $sq = $('.square-' + m.to), o = $sq.offset();
+        $('<div class="dot"></div>').css({
+          left: o.left + $sq.width()/2 - 8,
+          top : o.top  + $sq.height()/2 - 8
+        }).appendTo('body');
+      });
+    }
+
+    function checkGameOver(lastFrom) {
+      if (game.in_checkmate()) {
+        const id = pieceMap[lastFrom];
+        if (id) scoreMap[id] += 100;
+        updateLeaderboard();
+        const winner = game.turn() === 'w' ? 'Black wins!' : 'White wins!';
+        showGameOver(winner);
+        return true;
+      }
+      if (game.in_stalemate() || game.in_draw() || game.in_threefold_repetition()) {
+        showGameOver('Draw');
+        return true;
+      }
+      return false;
+    }
+
+    function showGameOver(text) {
+      gameOver = true;
+      $('#gameOverText').text(text);
+      $('#gameOverOverlay').css('display','flex');
+    }
+
+    function doReset() {
+      matchStarted = false;
+      $('body').removeClass('game-in-progress');
+      
+      awaitingAI = false; selected = null; gameOver = false;
+      $('.message').text('');
+      $('#history').text('Moves:');
+      game.reset(); board.start();
+      $('.eval').text('Game reset');
+      $('#gameOverOverlay').hide();
+      $('#postGameControls').hide();
+      $('#chatContent').empty();
+
+      // 重置额外走棋相关变量
+      bonusMoveSquare = null;
+
+      currentVariantState = $('#variantState').val();
+      console.log('重置游戏，当前变体状态:', currentVariantState);
+      updateVariantStateInfo();
+
+      $.ajax({
+        url:'/set_side', method:'POST',
+        contentType:'application/json',
+        data: JSON.stringify({ 
+          side: $('#side').val(),
+          variant_state: currentVariantState
+        }),
+        dataType:'json'
+      }).done(data=>{
+        console.log('服务器响应重置:', data);
+        board.position(data.fen, false);
+        game.load(data.fen);
+        currentVariantState = data.variant_state;
+        console.log('服务器设置的变体状态:', currentVariantState);
+        updateVariantStateInfo();
+        initPieces();
+        highlightLast(null,null);
+        if (data.ai_move) {
+          appendHistory('... '+data.ai_move);
+          highlightLast(data.ai_move.slice(0,2), data.ai_move.slice(2,4));
+          $('.eval').text('AI starts: ' + data.ai_move);
+        }
+        updateChat();
+      });
+    }
+
+    function updateChat() {
+      if (gameOver) return;
+      fetch('/commentary', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ fen: game.fen() })
+      })
+      .then(r=>r.json())
+      .then(data=>{
+        const msg = $('<div class="chat-message"></div>').text(data.text);
+        $('#chatContent').append(msg);
+        $('#chatContent').scrollTop($('#chatContent')[0].scrollHeight);
+      })
+      .catch(()=>{});
+    }
+
+    function onSquareClick(square) {
+      if (awaitingAI || gameOver) return;
+      const sideChar = $('#side').val().charAt(0);
+      const p = game.get(square);
+
+      // 调试输出当前游戏状态
+      console.log('点击棋盘格子时的游戏状态:', {
+        square: square,
+        piece: p,
+        selected: selected,
+        side: sideChar,
+        variant: currentVariantState,
+        turn: game.turn(),
+        inCheck: game.in_check(),
+        legalMovesCount: game.moves().length,
+        fen: game.fen(),
+        bonusMoveSquare: bonusMoveSquare
+      });
+
+      // 在额外回合中，只允许特定棋子移动
+      if (bonusMoveSquare !== null) {
+        console.log('变体F额外回合中，检查是否选择了指定棋子', bonusMoveSquare);
+        
+        // 如果玩家尝试选择不是指定棋子的棋子，显示提示并返回
+        if (!selected && square !== bonusMoveSquare) {
+          $('.message').text('只有获得额外回合的棋子可以移动!').css('color', '#ff3d00');
+          setTimeout(() => {
+            $('.message').text('').css('color', '');
+          }, 2000);
+          
+          // 高亮显示可以移动的棋子
+          $('.square-' + bonusMoveSquare).addClass('highlight-bonus-piece');
+          setTimeout(() => {
+            $('.square-' + bonusMoveSquare).removeClass('highlight-bonus-piece');
+          }, 2000);
+          
+          return;
+        }
+        
+        // 如果玩家已经选择了指定棋子，但又尝试选择其他棋子，不允许
+        if (selected === bonusMoveSquare && p && p.color === sideChar && square !== bonusMoveSquare) {
+          $('.message').text('只有获得额外回合的棋子可以移动!').css('color', '#ff3d00');
+          setTimeout(() => {
+            $('.message').text('').css('color', '');
+          }, 2000);
+          return;
+        }
+      }
+
+      if (!selected) {
+        if (!p || p.color !== sideChar) return;
+        clearHighlights();
+        selected = square;
+        $('.square-'+square).addClass('selected');
+        
+        const legalMoves = game.moves({square, verbose:true});
+        
+        const specialMoves = getSpecialVariantMoves(square, p);
+        
+        const allMoves = [...legalMoves, ...specialMoves];
+        console.log('可能的移动:', {
+          legalMoves: legalMoves,
+          specialMoves: specialMoves,
+          allMoves: allMoves.length
+        });
+        showDots(allMoves);
+        
+        if (p && p.color === sideChar && p.type === 'n') {
+          showCatOnKnight(square);
+        }
+        return;
+      }
+      if (p && p.color === sideChar) {
+        clearHighlights();
+        selected = square;
+        $('.square-'+square).addClass('selected');
+        
+        const legalMoves = game.moves({square, verbose:true});
+        
+        const specialMoves = getSpecialVariantMoves(square, p);
+        
+        const allMoves = [...legalMoves, ...specialMoves];
+        console.log('重新选择了己方棋子:', {
+          square: square,
+          legalMoves: legalMoves.length,
+          specialMoves: specialMoves.length
+        });
+        showDots(allMoves);
+        
+        if (p && p.color === sideChar && p.type === 'n') {
+          showCatOnKnight(square);
+        }
+        return;
+      }
+
+      const source = selected, target = square;
+      console.log('移动棋子:', { from: source, to: target, variant: currentVariantState });
+      
+      const sourcePiece = game.get(source);
+      console.log('移动的棋子:', sourcePiece);
+      
+      // 检查是否为特殊变体走法
+      const isSpecialMove = isVariantMove(source, target, sourcePiece);
+      console.log('是否为特殊变体走法:', isSpecialMove);
+      
+      if (isSpecialMove) {
+        console.log('准备处理特殊变体走法');
+        handleVariantMove(source, target, sourcePiece);
+        return;
+      }
+      
+      const mv = game.move({from:source, to:target, promotion:'q'});
+      clearHighlights(); $('.dot').remove();
+      selected = null;
+      if (!mv) return;
+
+      // 更新棋子映射和分数
+      const moverId = pieceMap[source];
+      delete pieceMap[source];
+      pieceMap[target] = moverId;
+      if (mv.captured) scoreMap[moverId] += values[mv.captured];
+      updateLeaderboard();
+
+      board.position(game.fen(), false);
+      appendHistory(mv.san);
+      highlightLast(source, target);
+      $('.eval').text('You: '+mv.san);
+      updateChat();
+      if (checkGameOver(source)) return;
+
+      awaitingAI = true;
+      console.log('发送常规走法请求:', {move: source+target});
+      
+      $.ajax({
+        url:'/move', method:'POST',
+        contentType:'application/json',
+        data: JSON.stringify({ move: source+target }),
+        dataType:'json'
+      })
+      .done(data=>{
+        console.log('服务器响应成功:', data);
+        
+        if (data.status !== 'success') {
+          $('.message').text('Invalid move');
+          awaitingAI = false;
+          return;
+        }
+        
+        // 检查是否有随机走法数据
+        if (data.random_move_applied) {
+          console.log('检测到随机走法数据:', {
+            random_move_applied: data.random_move_applied,
+            original_move: data.original_move,
+            actual_move: data.actual_move,
+            random_move_msg: data.random_move_msg
+          });
+          
+          // 获取原始和实际走法信息
+          const originalFrom = data.original_move.slice(0,2);
+          const originalTo = data.original_move.slice(2,4);
+          const actualFrom = data.actual_move.slice(0,2);
+          const actualTo = data.actual_move.slice(2,4);
+          
+          console.log('修正随机走法棋子位置:', {
+            from: originalFrom,
+            originalTo: originalTo,
+            actualTo: actualTo
+          });
+          
+          // 更新棋子映射 - 确保分数和棋子ID正确跟踪
+          const moverId = pieceMap[originalFrom];
+          if (moverId) {
+            delete pieceMap[originalFrom];
+            pieceMap[actualTo] = moverId;
+            console.log('更新棋子映射:', { from: originalFrom, to: actualTo, id: moverId });
+          }
+          
+          // 需要直接从FEN加载棋盘状态，而不是尝试手动更新位置
+          // 这可以确保前端棋盘状态与后端完全同步
+          console.log('从服务器返回的FEN加载棋盘状态:', data.fen);
+          board.position(data.fen, false);
+          game.load(data.fen);
+          
+          // 显示随机走法消息
+          $('.message').text(data.random_move_msg || '随机走法已触发！').css('color', '#ff9800');
+          setTimeout(() => {
+            $('.message').text('').css('color', '');
+          }, 3000);
+          
+          // 更新高亮和历史记录
+          highlightLast(actualFrom, actualTo);
+          appendHistory(`(随机${originalTo}->${actualTo})`);
+          
+          // 显示AI走法和评估
+          $('.eval').text('随机走法生效! ' + originalFrom + '->' + originalTo + ' 变为 ' + actualFrom + '->' + actualTo);
+        } else if (data.special_effect) {
+          // 处理变体D和变体E的特殊效果信息
+          console.log('检测到变体特殊效果:', {
+            special_effect: data.special_effect,
+            message: data.special_effect_msg,
+            turn_override: data.turn_override
+          });
+          
+          // 从FEN加载棋盘状态
+          console.log('从服务器返回的FEN加载棋盘状态:', data.fen);
+          board.position(data.fen, false);
+          game.load(data.fen);
+          
+          // 显示特殊效果消息
+          $('.message').text(data.special_effect_msg || '特殊效果已触发').css('color', '#ff3d00');
+          setTimeout(() => {
+            $('.message').text('').css('color', '');
+          }, 4000);
+          
+          // 处理变体E冻结效果，需要特殊处理回合
+          if (data.special_effect === 'frozen') {
+            console.log('变体E: AI棋子被冻结，回合返回给玩家');
+            
+            if (data.turn_override === 'player') {
+              console.log('变体E: 检测到回合覆盖，设置为玩家回合');
+              // 让AI等待状态结束，立即允许玩家继续走子
+              awaitingAI = false;
+              
+              // 显示冻结效果
+              const frozenSquare = data.ai_move.slice(2,4);
+              const $square = $(`.square-${frozenSquare}`);
+              $square.append('<div class="frozen-effect"></div>');
+              
+              // 3秒后移除视觉效果
+              setTimeout(() => {
+                $('.frozen-effect').remove();
+              }, 3000);
+              
+              // 添加到历史记录
+              const aiMoveFrom = data.ai_move.slice(0,2);
+              appendHistory(`${aiMoveFrom}->${frozenSquare} (被冻结)`);
+              
+              // 显示合法走法信息(如果有)
+              if (data.legal_moves_debug) {
+                console.log('变体E: 当前合法走法:', data.legal_moves_debug);
+              }
+              
+              // 显示冻结效果的评估信息
+              $('.eval').text('特殊效果：AI棋子被冻结！轮到您继续走棋。');
+              
+              // 更新聊天和高亮
+              updateChat();
+              highlightLast(data.ai_move.slice(0,2), data.ai_move.slice(2,4));
+              
+              // 避免后续的AI走法处理
+              return;
+            }
+          } else if (data.special_effect === 'frozen_move') {
+            // AI避开被冻结棋子的走法
+            console.log('变体E: AI避开被冻结棋子的走法');
+            
+            // 正常显示AI走法
+            appendHistory('... ' + data.ai_move + ' (避开冻结棋子)');
+            
+            // 确保棋盘状态正确同步
+            console.log('AI避开被冻结棋子后重新同步棋盘状态:', data.fen);
+            board.position(data.fen, false);
+            game.load(data.fen);
+            
+            // 检查游戏状态
+            console.log('AI避开冻结棋子后游戏状态:', {
+              turn: game.turn(),
+              fen: game.fen(),
+              inCheck: game.in_check(),
+              legalMoves: game.moves().length
+            });
+            
+            // 强制结束AI等待状态
+            console.log('AI避开冻结棋子后设置玩家回合');
+            awaitingAI = false;
+            
+            // 更新高亮和评估信息
+            highlightLast(data.ai_move.slice(0,2), data.ai_move.slice(2,4));
+            updateChat();
+            
+            // 避免后续的AI走法处理
+            return;
+          } else if (data.special_effect === 'bonus_move') {
+            // 处理变体F玩家连续走棋效果
+            console.log('变体F: 玩家获得连续走棋机会');
+            
+            // 记录可以连续走棋的特定棋子位置
+            if (data.bonus_move_piece) {
+              bonusMoveSquare = data.bonus_move_piece;
+              console.log('变体F: 只有位于', bonusMoveSquare, '的棋子可以在额外回合中移动');
+            }
+            
+            // 显示连续走棋视觉效果
+            const pieceSquare = data.ai_move ? data.ai_move.slice(0,2) : source;
+            const $square = $(`.square-${bonusMoveSquare || pieceSquare}`);
+            $square.append('<div class="bonus-move-effect"></div>');
+            
+            // 3秒后移除视觉效果
+            setTimeout(() => {
+              $('.bonus-move-effect').remove();
+            }, 3000);
+            
+            // 添加到历史记录
+            appendHistory(`（获得额外回合）`);
+            
+            // 确保棋盘状态正确同步
+            console.log('玩家获得连续走棋机会后重新同步棋盘状态:', data.fen);
+            board.position(data.fen, false);
+            game.load(data.fen);
+            
+            // 显示合法走法信息(如果有)
+            if (data.legal_moves_debug) {
+              console.log('变体F: 当前合法走法:', data.legal_moves_debug);
+            }
+            
+            // 将回合返回给玩家
+            console.log('变体F: 玩家获得额外回合');
+            awaitingAI = false;
+            
+            // 显示连续走棋效果的评估信息
+            $('.eval').text('特殊效果：您获得了一次额外的走棋机会！');
+            
+            // 避免后续的AI走法处理
+            return;
+          } else if (data.special_effect === 'vanish') {
+            // 处理变体D AI棋子自爆效果
+            console.log('变体D: AI棋子吃掉玩家特殊棋子后自爆');
+            
+            // 显示自爆视觉效果
+            const aiMoveToSquare = data.ai_move ? data.ai_move.slice(2,4) : '';
+            if (aiMoveToSquare) {
+              const $square = $(`.square-${aiMoveToSquare}`);
+              $square.append('<div class="vanish-effect"></div>');
+              
+              // 1秒后移除视觉效果
+              setTimeout(() => {
+                $('.vanish-effect').remove();
+              }, 1000);
+            }
+            
+            // 添加到历史记录
+            if (data.ai_move) {
+              appendHistory('... ' + data.ai_move + ' (自爆)');
+            }
+            
+            // 确保棋盘状态正确同步
+            console.log('AI棋子自爆后重新同步棋盘状态:', data.fen);
+            board.position(data.fen, false);
+            game.load(data.fen);
+            
+            // 显示特殊效果消息
+            $('.message').text(data.special_effect_msg || 'AI棋子自爆了！').css('color', '#ff3d00');
+            setTimeout(() => {
+              $('.message').text('').css('color', '');
+            }, 4000);
+            
+            // 更新评估信息
+            $('.eval').text('特殊效果：AI棋子吃掉您的特殊棋子后自爆！');
+            
+            // 更新高亮
+            if (data.ai_move) {
+              highlightLast(data.ai_move.slice(0,2), data.ai_move.slice(2,4));
+            }
+            
+            // 游戏继续
+            awaitingAI = false;
+            
+            // 避免后续的AI走法处理
+            return;
+          } else if (data.special_effect === 'transform') {
+            // 处理变体G棋子转换效果
+            console.log('变体G: 敌方棋子被转化为己方棋子');
+            
+            // 显示棋子转换视觉效果
+            if (data.transform_piece_square) {
+              const transformSquare = data.transform_piece_square;
+              console.log('变体G: 新棋子出现在', transformSquare);
+              
+              // 添加转换效果
+              const $square = $(`.square-${transformSquare}`);
+              $square.append('<div class="transform-effect"></div>');
+              
+              // 3秒后移除视觉效果
+              setTimeout(() => {
+                $('.transform-effect').remove();
+              }, 3000);
+            }
+            
+            // 添加到历史记录
+            appendHistory(`(棋子转换 ${data.transform_count}/${data.transform_max})`);
+            
+            // 确保棋盘状态正确同步
+            console.log('棋子转换后重新同步棋盘状态:', data.fen);
+            board.position(data.fen, false);
+            game.load(data.fen);
+            
+            // 显示转换效果的评估信息
+            $('.eval').text('魔法效果：敌方棋子被转化为己方棋子！');
+            
+            // 更新聊天
+            updateChat();
+            
+            // 继续处理AI走法
+          } else if (data.special_effect === 'explosion') {
+            // 可以在这里添加视觉效果：爆炸动画等
+            // 在吃掉特殊棋子的位置显示一个简单的爆炸效果
+            const aiMoveTo = data.ai_move.slice(2,4);
+            const $square = $(`.square-${aiMoveTo}`);
+            const position = $square.position();
+            
+            const $explosion = $('<div class="explosion"></div>');
+            $explosion.css({
+              left: position.left + $square.width()/2,
+              top: position.top + $square.height()/2
+            });
+            
+            $('#board').append($explosion);
+            
+            // 2秒后移除爆炸效果
+            setTimeout(() => {
+              $explosion.remove();
+            }, 2000);
+            
+            // 更新历史记录
+            const aiMoveFrom = data.ai_move.slice(0,2);
+            appendHistory(`${aiMoveFrom}->${aiMoveTo} (自爆)`);
+          } else if (data.special_effect === 'king_capture') {
+            // 国王吃子特殊效果
+            const aiMoveFrom = data.ai_move.slice(0,2);
+            const aiMoveTo = data.ai_move.slice(2,4);
+            
+            // 添加国王吃子的历史记录
+            appendHistory(`${aiMoveFrom}->${aiMoveTo} (王吃特殊棋子)`);
+            
+            // 添加国王吃子的视觉效果 - 闪烁金色高亮
+            const $square = $(`.square-${aiMoveTo}`);
+            $square.append('<div class="king-capture-effect"></div>');
+            
+            // 2秒后移除效果
+            setTimeout(() => {
+              $('.king-capture-effect').remove();
+            }, 2000);
+          } else {
+            // 正常显示AI走法
+            appendHistory('... ' + data.ai_move);
+          }
+          
+          // 显示AI走法和评估
+          $('.eval').text(
+            data.special_effect === 'explosion' ? '特殊效果：自爆已触发！' : 
+            data.special_effect === 'king_capture' ? '特殊效果：国王不会自爆！' : 
+            data.special_effect === 'frozen' ? '特殊效果：AI棋子被冻结！' :
+            data.special_effect === 'frozen_move' ? '特殊效果：AI避开了被冻结的棋子！' :
+            data.special_effect === 'bonus_move' ? '特殊效果：您获得了额外回合！' :
+            data.special_effect === 'transform' ? '特殊效果：敌方棋子被转化为己方棋子！' :
+            '特殊效果：AI棋子幸存！'
+          );
+          
+          // 如果变体F触发了连续走棋，则返回直接处理，不执行AI走法
+          if (data.special_effect === 'explosion' || data.special_effect === 'bonus_move' || data.special_effect === 'transform') {
+            console.log('特殊效果后解除AI等待状态，允许玩家继续走子');
+            awaitingAI = false;
+            // 取消后续AI走法的延迟处理
+            return;
+          }
+        } else {
+          // 常规处理 - 无特殊效果
+          console.log('常规AI走法:', data.ai_move);
+          $('.message').text('');
+        }
+        
+        // 延迟处理AI走法
+        const delay = 1000 + Math.random()*500;
+        setTimeout(()=>{
+          const aiFrom = data.ai_move.slice(0,2),
+                aiTo   = data.ai_move.slice(2,4);
+                
+          console.log('处理AI走法:', {
+            from: aiFrom, 
+            to: aiTo, 
+            fen: data.fen,
+            special_effect: data.special_effect,
+            turn_before: game.turn()
+          });
+          
+          // 如果之前已经触发了自爆效果处理，不需要再次处理
+          if (data.special_effect === 'explosion') {
+            console.log('检测到之前已经处理了自爆效果，跳过常规AI走法处理');
+            awaitingAI = false;
+            return;
+          }
+          
+          // AI响应后，重新从FEN加载棋盘状态
+          board.position(data.fen, false);
+          game.load(data.fen);
+          
+          // 验证游戏状态是否正确同步
+          console.log('AI走法后游戏状态:', {
+            turn: game.turn(),
+            inCheck: game.in_check(),
+            legalMovesCount: game.moves().length,
+            fen: game.fen(),
+            expectedFen: data.fen
+          });
+          
+          // 如果服务器提供了合法走法列表，进行比较
+          if (data.legal_moves_debug) {
+            const clientSideLegalMoves = game.moves({verbose: true}).map(m => m.from + m.to);
+            console.log('走法比较:', {
+              serverLegalMoves: data.legal_moves_debug,
+              clientLegalMoves: clientSideLegalMoves,
+              movesMismatch: data.legal_moves_debug.length !== clientSideLegalMoves.length
+            });
+            
+            // 如果返回了下一玩家信息，确保回合与游戏状态匹配
+            if (data.next_player) {
+              const currentTurn = game.turn() === 'w' ? 'white' : 'black';
+              if (currentTurn !== data.next_player) {
+                console.warn(`警告：回合不匹配！游戏引擎: ${currentTurn}, 服务器: ${data.next_player}`);
+                // 如果回合不匹配，可以强制同步
+                console.log('强制重新加载游戏状态确保同步');
+                game.load(data.fen);
+              }
+            }
+          }
+          
+          // 更新棋子映射
+          const aiId = pieceMap[aiFrom];
+          if (aiId) {
+            delete pieceMap[aiFrom];
+            pieceMap[aiTo] = aiId;
+            
+            // 检查是否吃子
+            const aiMv = game.history({verbose: true}).pop();
+            if (aiMv && aiMv.captured) {
+              scoreMap[aiId] += values[aiMv.captured];
+              console.log('AI吃子:', { piece: aiId, captured: aiMv.captured, scoreAdded: values[aiMv.captured] });
+            }
+            
+            updateLeaderboard();
+          }
+          
+          // 添加AI走法到历史记录
+          const aiMvText = game.history().pop() || `${aiFrom}-${aiTo}`;
+          appendHistory(aiMvText);
+          highlightLast(aiFrom, aiTo);
+          
+          // 显示AI走法和评估信息
+          $('.eval').text('AI: ' + aiMvText + ' Evaluation: ' + JSON.stringify(data.evaluation));
+          updateChat();
+          awaitingAI = false;
+          checkGameOver(aiFrom);
+          
+          // 重置额外连续走棋相关变量
+          bonusMoveSquare = null;
+        }, delay);
+      })
+      .fail(()=>{
+        $('.message').text('Server error');
+        awaitingAI = false;
+      });
+    }
+
+    function showCatOnKnight(square) {
+      $('.cat-overlay').remove();
+      
+      const $sq = $('.square-' + square);
+      const offset = $sq.offset();
+      const squareSize = $sq.width();
+      
+      const $cat = $('<img class="cat-overlay" src="images/cat.png" alt="Cat">');
+      $cat.css({
+        left: offset.left + (squareSize/2) - 20,
+        top: offset.top + (squareSize/2) - 20
+      });
+      
+      $('body').append($cat);
+      
+      setTimeout(() => {
+        $cat.fadeOut(300, function() {
+          $(this).remove();
+        });
+      }, 3000);
+    }
+
+    function getSpecialVariantMoves(square, piece) {
+      if (!piece) return [];
+      
+      console.log('检查特殊变体可能走法:', {
+        square: square,
+        piece: piece,
+        variant: currentVariantState
+      });
+      
+      const specialMoves = [];
+      const files = 'abcdefgh';
+      const file = square.charAt(0);
+      const rank = parseInt(square.charAt(1));
+      const fileIndex = files.indexOf(file);
+      
+      if (currentVariantState === 'A' && piece.type === 'p') {
+        console.log('变体A(兵可斜走)可能走法检查');
+        if (piece.color === 'w') {
+          if (fileIndex > 0) {
+            const targetSquare = files[fileIndex-1] + (rank+1);
+            const targetPiece = game.get(targetSquare);
+            console.log(`检查白兵左斜走法: ${square} -> ${targetSquare}, 目标位置有棋子: ${Boolean(targetPiece)}`);
+            if (!targetPiece) {
+              specialMoves.push({from: square, to: targetSquare, variant: true});
+              console.log(`添加特殊走法: ${square} -> ${targetSquare}`);
+            }
+          }
+          if (fileIndex < 7) {
+            const targetSquare = files[fileIndex+1] + (rank+1);
+            const targetPiece = game.get(targetSquare);
+            console.log(`检查白兵右斜走法: ${square} -> ${targetSquare}, 目标位置有棋子: ${Boolean(targetPiece)}`);
+            if (!targetPiece) {
+              specialMoves.push({from: square, to: targetSquare, variant: true});
+              console.log(`添加特殊走法: ${square} -> ${targetSquare}`);
+            }
+          }
+        } 
+        else {
+          if (fileIndex > 0) {
+            const targetSquare = files[fileIndex-1] + (rank-1);
+            const targetPiece = game.get(targetSquare);
+            console.log(`检查黑兵左斜走法: ${square} -> ${targetSquare}, 目标位置有棋子: ${Boolean(targetPiece)}`);
+            if (!targetPiece) {
+              specialMoves.push({from: square, to: targetSquare, variant: true});
+              console.log(`添加特殊走法: ${square} -> ${targetSquare}`);
+            }
+          }
+          if (fileIndex < 7) {
+            const targetSquare = files[fileIndex+1] + (rank-1);
+            const targetPiece = game.get(targetSquare);
+            console.log(`检查黑兵右斜走法: ${square} -> ${targetSquare}, 目标位置有棋子: ${Boolean(targetPiece)}`);
+            if (!targetPiece) {
+              specialMoves.push({from: square, to: targetSquare, variant: true});
+              console.log(`添加特殊走法: ${square} -> ${targetSquare}`);
+            }
+          }
+        }
+      }
+      
+      else if (currentVariantState === 'B' && piece.type === 'b') {
+        console.log('变体B(象可直走)可能走法检查');
+        if (rank < 8) {
+          const targetSquare = file + (rank+1);
+          const targetPiece = game.get(targetSquare);
+          console.log(`检查象向上直走: ${square} -> ${targetSquare}, 目标位置有棋子: ${Boolean(targetPiece)}`);
+          if (!targetPiece) {
+            specialMoves.push({from: square, to: targetSquare, variant: true});
+            console.log(`添加特殊走法: ${square} -> ${targetSquare}`);
+          }
+        }
+        if (rank > 1) {
+          const targetSquare = file + (rank-1);
+          const targetPiece = game.get(targetSquare);
+          console.log(`检查象向下直走: ${square} -> ${targetSquare}, 目标位置有棋子: ${Boolean(targetPiece)}`);
+          if (!targetPiece) {
+            specialMoves.push({from: square, to: targetSquare, variant: true});
+            console.log(`添加特殊走法: ${square} -> ${targetSquare}`);
+          }
+        }
+        if (fileIndex > 0) {
+          const targetSquare = files[fileIndex-1] + rank;
+          const targetPiece = game.get(targetSquare);
+          console.log(`检查象向左直走: ${square} -> ${targetSquare}, 目标位置有棋子: ${Boolean(targetPiece)}`);
+          if (!targetPiece) {
+            specialMoves.push({from: square, to: targetSquare, variant: true});
+            console.log(`添加特殊走法: ${square} -> ${targetSquare}`);
+          }
+        }
+        if (fileIndex < 7) {
+          const targetSquare = files[fileIndex+1] + rank;
+          const targetPiece = game.get(targetSquare);
+          console.log(`检查象向右直走: ${square} -> ${targetSquare}, 目标位置有棋子: ${Boolean(targetPiece)}`);
+          if (!targetPiece) {
+            specialMoves.push({from: square, to: targetSquare, variant: true});
+            console.log(`添加特殊走法: ${square} -> ${targetSquare}`);
+          }
+        }
+      }
+      
+      console.log(`找到${specialMoves.length}个特殊变体可能走法`);
+      return specialMoves;
+    }
+    
+    function isVariantMove(from, to, piece) {
+      if (!piece) return false;
+      
+      console.log('检查是否为特殊变体走法:', {
+        from: from,
+        to: to,
+        piece: piece,
+        variant: currentVariantState
+      });
+      
+      const fromFile = from.charAt(0);
+      const fromRank = parseInt(from.charAt(1));
+      const toFile = to.charAt(0);
+      const toRank = parseInt(to.charAt(1));
+      const fileDiff = Math.abs(fromFile.charCodeAt(0) - toFile.charCodeAt(0));
+      const rankDiff = Math.abs(fromRank - toRank);
+      
+      console.log('位置差异:', { fileDiff, rankDiff });
+      
+      if (currentVariantState === 'A' && piece.type === 'p') {
+        console.log('变体A(兵可斜走)检查');
+        if (fileDiff === 1) {
+          if ((piece.color === 'w' && toRank === fromRank + 1) || 
+              (piece.color === 'b' && toRank === fromRank - 1)) {
+            const targetEmpty = !game.get(to);
+            console.log('目标位置是否为空:', targetEmpty);
+            if (targetEmpty) {
+              console.log('确认为变体A特殊走法');
+              return true;
+            }
+          }
+        }
+      }
+      
+      else if (currentVariantState === 'B' && piece.type === 'b') {
+        console.log('变体B(象可直走)检查');
+        if ((rankDiff === 1 && fileDiff === 0) || (fileDiff === 1 && rankDiff === 0)) {
+          const targetEmpty = !game.get(to);
+          console.log('目标位置是否为空:', targetEmpty);
+          if (targetEmpty) {
+            console.log('确认为变体B特殊走法');
+            return true;
+          }
+        }
+      }
+      
+      console.log('不是特殊变体走法');
+      return false;
+    }
+    
+    function handleVariantMove(from, to, piece) {
+      console.log('处理特殊变体走法:', {
+        from: from,
+        to: to,
+        piece: piece,
+        variant: currentVariantState
+      });
+      
+      clearHighlights();
+      $('.dot').remove();
+      selected = null;
+      
+      awaitingAI = true;
+      $('.eval').text('处理特殊变体走法...');
+      
+      // 获取棋子类型
+      const pieceType = piece.color === 'w' ? 'w' + piece.type.toUpperCase() : 'b' + piece.type.toUpperCase();
+      
+      // 保存原始状态以便恢复
+      const originalFen = game.fen();
+      
+      // 先在前端直接模拟移动棋子，立即给用户反馈
+      const currentPosition = board.position();
+      currentPosition[to] = pieceType;
+      delete currentPosition[from];
+      board.position(currentPosition, false);
+      
+      // 更新历史记录和高亮
+      appendHistory(`${piece.color === 'w' ? '白' : '黑'}${getPieceSymbol(piece.type)}[特殊]${from}-${to}`);
+      highlightLast(from, to);
+      
+      console.log('发送特殊变体走法请求:', {
+        move: from + to,
+        variant_move: true
+      });
+      
+      $.ajax({
+        url: '/move',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+          move: from + to,
+          variant_move: true
+        }),
+        dataType: 'json'
+      })
+      .done(data => {
+        console.log('特殊变体走法服务器响应:', data);
+        
+        if (data.status === 'success') {
+          // 更新棋子映射
+          const moverId = pieceMap[from];
+          delete pieceMap[from];
+          pieceMap[to] = moverId;
+          
+          // 更新游戏状态
+          game.load(data.fen);
+          
+          // 设置走法信息文本
+          let moveText = '特殊变体走法成功';
+          
+          // 如果是C状态且触发了随机走法，展示随机走法信息
+          if (data.random_move_applied) {
+            console.log('检测到变体走法中的随机走法数据:', data);
+            
+            try {
+              const originalFrom = data.original_move.slice(0,2);
+              const originalTo = data.original_move.slice(2,4);
+              const actualFrom = data.actual_move.slice(0,2);
+              const actualTo = data.actual_move.slice(2,4);
+              
+              console.log('变体随机走法解析:', {
+                originalFrom, originalTo,
+                actualFrom, actualTo
+              });
+              
+              moveText = '随机走法生效! ' + originalFrom + '->' + originalTo + ' 变为 ' + actualFrom + '->' + actualTo;
+              
+              // 更新棋子映射 - 确保分数和棋子ID正确跟踪
+              const moverId = pieceMap[originalFrom];
+              if (moverId) {
+                delete pieceMap[originalFrom];
+                pieceMap[actualTo] = moverId;
+                console.log('更新棋子映射:', { from: originalFrom, to: actualTo, id: moverId });
+              }
+              
+              // 需要直接从FEN加载棋盘状态，而不是尝试手动更新位置
+              // 这可以确保前端棋盘状态与后端完全同步
+              console.log('从服务器返回的FEN加载棋盘状态:', data.fen);
+              board.position(data.fen, false);
+              game.load(data.fen);
+              
+              // 显示随机走法消息
+              $('.message').text(data.random_move_msg || '随机走法已触发！').css('color', '#ff9800');
+              setTimeout(() => {
+                $('.message').text('').css('color', '');
+              }, 3000);
+              
+              // 更新高亮和历史记录
+              highlightLast(actualFrom, actualTo);
+              appendHistory(`(随机${originalTo}->${actualTo})`);
+              
+              // 显示AI走法和评估
+              $('.eval').text('随机走法生效! ' + originalFrom + '->' + originalTo + ' 变为 ' + actualFrom + '->' + actualTo);
+            } catch (e) {
+              console.error('处理随机走法数据时出错:', e);
+            }
+          }
+          
+          $('.eval').text(moveText);
+          
+          const delay = 1000 + Math.random() * 500;
+          setTimeout(() => {
+            const aiFrom = data.ai_move.slice(0, 2);
+            const aiTo = data.ai_move.slice(2, 4);
+            
+            console.log('应用AI走法:', {from: aiFrom, to: aiTo, fen: data.fen});
+            
+            // 应用AI走法后的最终状态
+            board.position(data.fen, false);
+            game.load(data.fen);
+            
+            // 更新棋子映射
+            const aiId = pieceMap[aiFrom];
+            if (aiId) {
+              delete pieceMap[aiFrom];
+              pieceMap[aiTo] = aiId;
+              
+              // 检查是否吃子
+              const aiMv = game.history({verbose: true}).pop();
+              if (aiMv && aiMv.captured) {
+                scoreMap[aiId] += values[aiMv.captured];
+                console.log('AI吃子:', { piece: aiId, captured: aiMv.captured, scoreAdded: values[aiMv.captured] });
+              }
+              
+              updateLeaderboard();
+            }
+            
+            // 添加AI走法到历史记录
+            const aiMvText = game.history().pop() || `${aiFrom}-${aiTo}`;
+            appendHistory(`AI:${aiMvText}`);
+            highlightLast(aiFrom, aiTo);
+            $('.eval').text('AI: ' + aiMvText + ' Evaluation: ' + JSON.stringify(data.evaluation));
+            updateChat();
+            awaitingAI = false;
+            checkGameOver(aiFrom);
+          }, delay);
+        } else {
+          // 如果服务器拒绝走法，恢复棋盘原始状态
+          game.load(originalFen);
+          board.position(game.fen(), false);
+          
+          $('.message').text(data.message || 'Invalid move');
+          awaitingAI = false;
+        }
+      })
+      .fail((xhr, status, error) => {
+        console.error('特殊变体走法请求失败:', status, error);
+        // 服务器错误，恢复棋盘原始状态
+        game.load(originalFen);
+        board.position(game.fen(), false);
+        
+        $('.message').text('服务器错误: ' + error);
+        awaitingAI = false;
+      });
+    }
+    
+    function getPieceSymbol(type) {
+      switch (type) {
+        case 'p': return '兵';
+        case 'n': return '马';
+        case 'b': return '象';
+        case 'r': return '车';
+        case 'q': return '后';
+        case 'k': return '王';
+        default: return '?';
+      }
+    }
+
+    $('#board').on('click', '.square-55d63', function() {
+      onSquareClick(this.getAttribute('data-square'));
+    });
+    $('#level').off('change').on('change', function() {
+      $.ajax({
+        url:'/set_level', method:'POST',
+        contentType:'application/json',
+        data: JSON.stringify({ level:+$(this).val() })
+      });
+    });
+    $('#twitterUsername').off('change').on('change', function() {
+    });
+    $('#twitterQueryBtn').off('click').on('click', function() {
+      const username = $('#twitterUsername').val().trim();
+      if (username) {
+        $('.message').text('Querying Twitter information...');
+        $.ajax({
+          url:'/twitter_info', 
+          method:'GET',
+          data: { username: username },
+          dataType:'json'
+        })
+        .done(function(data) {
+          if (data.status === 'success') {
+            $('.message').text('Twitter info retrieved successfully');
+            
+            let profileImageHtml = '';
+            if (data.profile_image) {
+              profileImageHtml = `<img src="${data.profile_image.replace('_normal', '')}" 
+                                    style="width:60px; height:60px; border-radius:50%; margin-bottom:10px;" />`;
+            }
+            
+            let createdDate = '';
+            if (data.created_at) {
+              try {
+                const date = new Date(Date.parse(data.created_at.replace(/( \+)/, ' UTC$1')));
+                createdDate = date.toLocaleDateString('zh-CN');
+              } catch(e) {
+                console.log("Date parse error:", e);
+                createdDate = data.created_at;
+              }
+            }
+            
+            let verifiedBadge = '';
+            if (data.verified === true) {
+              verifiedBadge = '<i class="fas fa-check-circle" style="color:#1DA1F2; margin-left:5px;"></i>';
+            }
+            
+            let urlHtml = '';
+            if (data.expanded_url) {
+              urlHtml = `<div style="margin-top:5px;"><b>网站:</b> <a href="${data.expanded_url}" target="_blank" style="color:#1DA1F2;">${data.expanded_url}</a></div>`;
+            } else if (data.url) {
+              urlHtml = `<div style="margin-top:5px;"><b>网站:</b> <a href="${data.url}" target="_blank" style="color:#1DA1F2;">${data.url}</a></div>`;
+            }
+            
+            let locationHtml = '';
+            if (data.location) {
+              locationHtml = `<div style="margin-top:5px;"><b>位置:</b> ${data.location}</div>`;
+            }
+            
+            const msg = $('<div class="chat-message" style="max-width: 95%; overflow: hidden;"></div>').html(
+              `${profileImageHtml}
+              <div style="margin-bottom: 5px;">
+                <b>Twitter用户:</b> ${data.name || ""} (@${data.username || ""}) ${verifiedBadge}
+              </div>
+              <div style="display: flex; flex-wrap: wrap; margin-bottom: 8px;">
+                <div style="margin-right: 15px;"><b>粉丝:</b> ${formatNumber(data.followers_count)}</div>
+                ${data.following_count ? `<div style="margin-right: 15px;"><b>关注:</b> ${formatNumber(data.following_count)}</div>` : ''}
+                ${data.tweets_count ? `<div style="margin-right: 15px;"><b>推文:</b> ${formatNumber(data.tweets_count)}</div>` : ''}
+                ${data.media_count ? `<div style="margin-right: 15px;"><b>媒体:</b> ${formatNumber(data.media_count)}</div>` : ''}
+                ${data.favourites_count ? `<div><b>喜欢:</b> ${formatNumber(data.favourites_count)}</div>` : ''}
+              </div>
+              ${data.user_rank ? `<div style="margin-bottom: 5px; background-color: ${getRankColor(data.user_rank)}; padding: 4px 8px; border-radius: 4px; color: white; display: inline-block;"><b>用户评级:</b> ${data.user_rank} - ${getRankDescription(data.user_rank)}</div>` : ''}
+              ${createdDate ? `<div style="margin-bottom: 5px;"><b>注册:</b> ${createdDate}</div>` : ''}
+              ${locationHtml}
+              ${data.description ? `<div style="margin-top: 5px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 5px;"><b>简介:</b> ${data.description}</div>` : '<div style="color: #888;"><b>简介:</b> 无简介</div>'}
+              ${urlHtml}`
+            );
+            $('#chatContent').append(msg);
+            $('#chatContent').scrollTop($('#chatContent')[0].scrollHeight);
+          } else {
+            $('.message').text('Failed to get Twitter info: ' + (data.error || 'Unknown error'));
+          }
+        })
+        .fail(function(xhr, status, error) {
+          $('.message').text(`Server error: ${error || status}`);
+          console.log("AJAX error:", xhr.responseText);
+        });
+      } else {
+        $('.message').text('Please enter a Twitter username');
+      }
+    });
+    $('#viewRankBtn').off('click').on('click', function() {
+      const username = $('#twitterUsername').val().trim();
+      if (!username) {
+        $('.message').text('请先输入Twitter用户名');
+        return;
+      }
+      
+      $('.message').text('正在获取用户评级...');
+      
+      $.ajax({
+        url: `/twitter_rank/${username}`,
+        method: 'GET',
+        dataType: 'json'
+      })
+      .done(function(data) {
+        if (data.status === 'success') {
+          const rankColor = getRankColor(data.user_rank);
+          
+          const msg = $('<div class="chat-message"></div>').html(
+            `<h3 style="margin-bottom: 10px;">用户评级详情</h3>
+            <div><b>用户名:</b> @${data.username}</div>
+            <div><b>粉丝数:</b> ${formatNumber(data.followers_count)}</div>
+            <div style="margin: 10px 0; padding: 8px; background-color: ${rankColor}; color: white; border-radius: 4px;">
+              <b>评级:</b> ${data.user_rank} - ${data.rank_description}
+            </div>
+            <div style="font-size: 0.85rem; margin-top: 10px; color: #666;">
+              <b>评级标准:</b><br>
+              A级: 0-50粉丝<br>
+              B级: 51-1000粉丝<br>
+              C级: 1001-5000粉丝<br>
+              D级: 5001-10000粉丝<br>
+              E级: 10001-50000粉丝<br>
+              F级: 50001-100000粉丝<br>
+              G级: 100001+粉丝
+            </div>`
+          );
+          
+          $('#chatContent').append(msg);
+          $('#chatContent').scrollTop($('#chatContent')[0].scrollHeight);
+          $('.message').text('用户评级获取成功');
+        } else {
+          $('.message').text(data.error || '获取用户评级失败');
+        }
+      })
+      .fail(function(xhr, status, error) {
+        $('.message').text(`服务器错误: ${error || status}`);
+      });
+    });
+    $('#refreshTokenBtn').off('click').on('click', function() {
+      $('.message').text('正在刷新Twitter令牌...');
+      $.ajax({
+        url: '/refresh_twitter_token',
+        method: 'GET',
+        dataType: 'json'
+      })
+      .done(function(data) {
+        if (data.status === 'success') {
+          $('.message').text('Twitter令牌刷新成功！');
+        } else {
+          $('.message').text('刷新令牌失败: ' + (data.error || '未知错误'));
+        }
+      })
+      .fail(function(xhr, status, error) {
+        $('.message').text('服务器错误: ' + (error || status));
+      });
+    });
+    $('#viewDataBtn').off('click').on('click', function() {
+      const username = $('#twitterUsername').val().trim();
+      if (!username) {
+        $('.message').text('请先输入Twitter用户名');
+        return;
+      }
+      
+      window.open(`/view_twitter_data/${username}`, '_blank');
+    });
+    $('#side, #resetBtn').off('click change').on('click change', doReset);
+    $('#gameOverShowLeaderboard').off('click').on('click', function(){
+      $('#gameOverOverlay').hide();
+      $('#postGameControls').show();
+    });
+    $('#restartBtn').off('click').on('click', doReset);
+    $('#variantState').off('change').on('change', function() {
+      if (matchStarted) {
+        $('.message').text('比赛已开始，无法更改变体规则！请先重置游戏。').css('color', '#dc3545');
+        setTimeout(() => {
+          $('.message').text('').css('color', '');
+        }, 3000);
+        
+        $(this).val(currentVariantState);
+        return;
+      }
+      
+      currentVariantState = $(this).val();
+      console.log('变体状态变更为:', currentVariantState);
+      updateVariantStateInfo();
+      
+      // 向服务器发送变体状态更新
+      $.ajax({
+        url: '/set_variant_state',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ state: currentVariantState }),
+        dataType: 'json'
+      })
+      .done(function(response) {
+        console.log('服务器变体状态更新响应:', response);
+        
+        // 处理特殊信息
+        if (response.status === 'info') {
+          $('.message').text(response.message).css('color', '#fd7e14');
+          setTimeout(() => {
+            $('.message').text('').css('color', '');
+          }, 5000);
+          
+          // 更新当前变体状态为服务器返回的状态
+          currentVariantState = response.variant_state;
+          $('#variantState').val(currentVariantState);
+          updateVariantStateInfo();
+        } else {
+          $('.message').text(`变体状态已更改为: ${currentVariantState}`);
+        }
+      })
+      .fail(function(error) {
+        console.error('更新变体状态失败:', error);
+      });
+      
+      // 检查当前变体状态
+      $.ajax({
+        url: '/get_variant_state',
+        method: 'GET',
+        dataType: 'json'
+      })
+      .done(function(response) {
+        console.log('服务器当前变体状态:', response);
+        if (response.variant_state !== currentVariantState) {
+          console.warn('警告: 前端和后端的变体状态不一致!');
+          console.warn(`前端: ${currentVariantState}, 后端: ${response.variant_state}`);
+        }
+      });
+    });
+
+    // 处理开始比赛按钮点击
+    $('#startMatchBtn').off('click').on('click', function() {
+      const username = $('#twitterUsername').val().trim();
+      if (!username) {
+        $('.message').text('请先输入Twitter用户名').css('color', '#dc3545');
+        setTimeout(() => {
+          $('.message').text('').css('color', '');
+        }, 3000);
+        return;
+      }
+      
+      if (matchStarted) {
+        $('.message').text('比赛已经开始，请先重置游戏后再开始新的比赛').css('color', '#dc3545');
+        setTimeout(() => {
+          $('.message').text('').css('color', '');
+        }, 3000);
+        return;
+      }
+      
+      // 首先查询Twitter用户数据，根据评级自动选择变体规则
+      $('.message').text('正在获取用户数据并分析评级...').css('color', '#007bff');
+      
+      // 获取用户Twitter数据
+      $.ajax({
+        url: `/view_twitter_data/${username}`,
+        method: 'GET',
+        dataType: 'json'
+      })
+      .done(function(userData) {
+        console.log('获取到Twitter用户数据:', userData);
+        
+        // 获取用户的sm_rank和ab_rank评级
+        let sm_rank = userData.data?.sm_rank || '';
+        let ab_rank = userData.data?.ab_rank || '';
+        let selectedVariant = 'normal'; // 默认变体
+        let variantReason = '';
+        
+        // 根据评级自动选择变体
+        if (sm_rank === 'M' && ab_rank === 'A1') {
+          selectedVariant = 'D';
+          variantReason = '根据用户评级 (M+A1) 自动选择变体D';
+        } else if (sm_rank === 'S' && ab_rank === 'B2') {
+          selectedVariant = 'E';
+          variantReason = '根据用户评级 (S+B2) 自动选择变体E';
+        } else if (sm_rank === 'S' && ab_rank === 'A1') {
+          selectedVariant = 'G';
+          variantReason = '根据用户评级 (S+A1) 自动选择变体G';
+        } else if (sm_rank === 'M' && ab_rank === 'B2') {
+          selectedVariant = 'F';
+          variantReason = '根据用户评级 (M+B2) 自动选择变体F';
+        } else {
+          variantReason = '用户评级不匹配特定变体条件，使用标准规则';
+        }
+        
+        console.log(`用户评级: SM=${sm_rank}, AB=${ab_rank}, 自动选择变体: ${selectedVariant}`);
+        currentVariantState = selectedVariant;
+        
+        // 将自动选择的变体显示在聊天窗口中
+        const evaluationMsg = $('<div class="chat-message"></div>').html(
+          `<div style="text-align: center; font-weight: bold; margin-bottom: 10px;">
+            🔍 评级分析结果
+          </div>
+          <div><b>玩家:</b> @${username}</div>
+          <div><b>S/M评级:</b> ${sm_rank || '未知'}</div>
+          <div><b>A/B评级:</b> ${ab_rank || '未知'}</div>
+          <div style="margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+            <div style="font-weight: bold;">自动选择变体:</div>
+            <div style="color: #007bff; font-size: 1.1em;">${getVariantDescription(selectedVariant)}</div>
+            <div style="font-style: italic; color: #666; margin-top: 5px; font-size: 0.9em;">${variantReason}</div>
+          </div>`
+        );
+        $('#chatContent').append(evaluationMsg);
+        $('#chatContent').scrollTop($('#chatContent')[0].scrollHeight);
+      
+      // 标记比赛开始
+      matchStarted = true;
+      
+        // 添加样式标记游戏进行中
+      $('body').addClass('game-in-progress');
+      
+        // 获取玩家选择的棋子颜色
+      const side = $('#side').val();
+      
+      // 向后端发送开始比赛请求
+      $.ajax({
+        url: '/set_side',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+          side: side,
+            variant_state: currentVariantState,
+          twitter_user: username
+        }),
+        dataType: 'json'
+      })
+      .done(function(data) {
+        console.log('比赛开始响应:', data);
+        board.position(data.fen, false);
+        game.load(data.fen);
+        currentVariantState = data.variant_state;
+        
+        // 获取随机走动配置
+        $.ajax({
+          url: '/get_random_move_config',
+          method: 'GET',
+          dataType: 'json'
+        })
+        .done(function(configData) {
+          console.log('随机走动配置:', configData);
+          
+          // 显示开始信息
+            const variantName = currentVariantState === 'normal' ? '标准规则' : 
+                            currentVariantState === 'A' ? '变体A (兵可斜走)' : 
+                            currentVariantState === 'B' ? '变体B (象可直走)' : 
+                            currentVariantState === 'D' ? '变体D (特殊棋子反制)' : 
+                            currentVariantState === 'E' ? '变体E (棋子冻结)' : 
+                            currentVariantState === 'F' ? '变体F (玩家的车/象/马吃掉敌方棋子后有50%几率连续走棋)' : 
+                            currentVariantState === 'G' ? '变体G (车/象/马吃掉敌方的兵/车/象/马后有99%几率将其变为己方棋子并随机重生，一局最多3次)' : 
+                           '未知变体';
+          
+          $('.message').text(`比赛已开始！玩家执${side === 'white' ? '白' : '黑'}，使用${variantName}`).css('color', '#28a745');
+          setTimeout(() => {
+            $('.message').text('').css('color', '');
+          }, 5000);
+          
+          // 获取随机走动概率级别信息
+          const randomMoveLevel = configData.level;
+          const randomMoveProb = configData.probability_percent;
+          const randomMoveDesc = configData.description;
+          const userRank = configData.current_match.user_rank || 'unknown';
+          
+          // 显示一个开始比赛的通知在聊天窗口
+          const msg = $('<div class="chat-message"></div>').html(
+            `<div style="text-align: center; font-weight: bold; margin-bottom: 10px;">
+              🏆 比赛已开始 🏆
+            </div>
+            <div>玩家: @${username}</div>
+            <div>执方: ${side === 'white' ? '白方' : '黑方'}</div>
+            <div>使用规则: ${variantName}</div>
+            <div style="margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+              <div style="font-weight: bold; margin-bottom: 5px;">随机走动机制设置:</div>
+              <div>玩家Twitter评级: <span style="display: inline-block; background: ${getRankColor(userRank)}; color: white; padding: 2px 8px; border-radius: 4px;">${userRank}级</span></div>
+              <div>随机走动级别: ${randomMoveLevel}级 (${randomMoveProb}%)</div>
+              <div style="font-style: italic; color: #fd7e14; margin-top: 5px;">${randomMoveDesc}</div>
+            </div>`
+          );
+          $('#chatContent').append(msg);
+          $('#chatContent').scrollTop($('#chatContent')[0].scrollHeight);
+        })
+        .fail(function(error) {
+          console.error('获取随机走动配置失败:', error);
+        });
+        
+        initPieces();
+        highlightLast(null, null);
+        if (data.ai_move) {
+          appendHistory('... ' + data.ai_move);
+          highlightLast(data.ai_move.slice(0,2), data.ai_move.slice(2,4));
+          $('.eval').text('AI starts: ' + data.ai_move);
+        }
+        updateChat();
+      })
+      .fail(function(error) {
+        console.error('开始比赛失败:', error);
+        $('.message').text('开始比赛失败，请重试').css('color', '#dc3545');
+        matchStarted = false;
+        $('body').removeClass('game-in-progress');
+        });
+      })
+      .fail(function(error) {
+        console.error('获取Twitter用户数据失败:', error);
+        $('.message').text('获取Twitter用户数据失败，无法确定变体规则').css('color', '#dc3545');
+      });
+    });
+
+    board = Chessboard('board', {
+      draggable: false,
+      position: 'start',
+      pieceTheme: './chessboardjs-1.0.0/img/chesspieces/wikipedia/{piece}.png'
+    });
+
+    doReset();
+
+    function formatNumber(num) {
+      if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+      }
+      if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+      }
+      return num;
+    }
+
+    // 添加新函数用于获取评级颜色
+    function getRankColor(rank) {
+      switch(rank) {
+        case 'A': return '#6c757d'; // 灰色
+        case 'B': return '#28a745'; // 绿色
+        case 'C': return '#17a2b8'; // 青色
+        case 'D': return '#007bff'; // 蓝色
+        case 'E': return '#fd7e14'; // 橙色
+        case 'F': return '#dc3545'; // 红色
+        case 'G': return '#9c27b0'; // 紫色
+        default: return '#6c757d'; // 默认灰色
+      }
+    }
+    
+    // 添加新函数用于获取评级描述
+    function getRankDescription(rank) {
+      switch(rank) {
+        case 'A': return '入门级账号 (0-50粉丝)';
+        case 'B': return '新兴账号 (51-1000粉丝)';
+        case 'C': return '小型KOL (1001-5000粉丝)';
+        case 'D': return '中型KOL (5001-10000粉丝)';
+        case 'E': return '大型KOL (10001-50000粉丝)';
+        case 'F': return '超级KOL (50001-100000粉丝)';
+        case 'G': return '顶级KOL/名人 (100001+粉丝)';
+        default: return '未知级别';
+      }
+    }
+
+    // 添加变体状态的介绍函数
+    function getVariantDescription(variant) {
+      switch(variant) {
+        case 'A': return '变体A：兵可以斜着走一格（移动到空位置）';
+        case 'B': return '变体B：象可以直线走一格（移动到空位置）';
+        case 'D': return '变体D：玩家特殊棋子被吃掉后敌方有50%几率消失';
+        case 'E': return '变体E：玩家棋子被吃掉后敌方有99%几率被冻结一回合';
+        case 'F': return '变体F：玩家的车/象/马吃掉敌方棋子后有50%几率连续走棋';
+        case 'G': return '变体G：车/象/马吃掉敌方的兵/车/象/马后有99%几率将其变为己方棋子并随机重生，一局最多3次';
+        case 'normal': return '标准规则：按照国际象棋规则正常走棋';
+        default: return '未知变体';
+      }
+    }
+
+    // 添加变体状态锁定标记
+    $('.control-group:has(#variantState)').append('<span class="variant-state-locked"><i class="fas fa-lock"></i> 已锁定</span>');
+
+    // 添加查看比赛历史记录功能
+    $('#viewMatchHistoryBtn').off('click').on('click', function() {
+      $('.message').text('正在获取比赛历史记录...');
+      
+      $.ajax({
+        url: '/match_history',
+        method: 'GET',
+        dataType: 'json'
+      })
+      .done(function(data) {
+        if (data.status === 'success') {
+          if (data.match_count === 0) {
+            $('.message').text('暂无比赛记录');
+            return;
+          }
+          
+          // 构建比赛历史HTML
+          let historyHtml = `
+            <div style="text-align: center; font-weight: bold; margin-bottom: 10px;">
+              📊 比赛历史记录 (共${data.match_count}场)
+            </div>
+          `;
+          
+          // 最多显示10条记录
+          const displayMatches = data.matches.slice(0, 10);
+          
+          displayMatches.forEach((match, index) => {
+            const rankColor = getRankColor(match.user_rank || 'unknown');
+            const variantName = match.variant === 'normal' ? '标准规则' : 
+                              match.variant === 'A' ? '变体A (兵可斜走)' : 
+                              match.variant === 'B' ? '变体B (象可直走)' : 
+                              match.variant === 'D' ? '变体D (特殊棋子反制)' : 
+                              match.variant === 'E' ? '变体E (棋子冻结)' : 
+                              match.variant === 'F' ? '变体F (玩家的车/象/马吃掉敌方棋子后有50%几率连续走棋)' : 
+                              match.variant === 'G' ? '变体G (车/象/马吃掉敌方的兵/车/象/马后有99%几率将其变为己方棋子并随机重生，一局最多3次)' : 
+                              '未知变体';
+            
+            // 添加随机走动级别信息
+            const randomMoveLevel = match.random_move_level || "未知";
+            const randomMoveProb = match.random_move_probability ? (match.random_move_probability * 100) + "%" : "未知";
+            
+            historyHtml += `
+              <div style="margin-bottom: 15px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+                <div style="margin-bottom: 5px;">
+                  <b>比赛 #${index + 1}</b> - ${match.match_start_time_readable || '未知时间'}
+                </div>
+                <div>玩家: @${match.twitter_user || '未知'} 
+                  ${match.user_rank ? `<span style="background: ${rankColor}; color: white; padding: 1px 5px; border-radius: 3px; font-size: 0.8em;">${match.user_rank}</span>` : ''}
+                </div>
+                <div>规则: ${variantName}</div>
+                <div>执方: ${match.player_side === 'white' ? '白方' : '黑方'}</div>
+                ${randomMoveLevel !== "未知" ? `<div>随机走动: ${randomMoveLevel}级 (${randomMoveProb})</div>` : ''}
+              </div>
+            `;
+          });
+          
+          const msg = $('<div class="chat-message" style="max-width: 95%;"></div>').html(historyHtml);
+          $('#chatContent').append(msg);
+          $('#chatContent').scrollTop($('#chatContent')[0].scrollHeight);
+          
+          $('.message').text('比赛历史记录获取成功');
+          setTimeout(() => {
+            $('.message').text('');
+          }, 3000);
+        } else {
+          $('.message').text(data.error || '获取比赛历史记录失败');
+        }
+      })
+      .fail(function(xhr, status, error) {
+        $('.message').text(`服务器错误: ${error || status}`);
+      });
+    });
+
+    // 添加查看当前随机走动配置的功能
+    $('#viewRandomMoveConfig').off('click').on('click', function() {
+      $('.message').text('正在获取随机走动配置...');
+      
+      $.ajax({
+        url: '/get_random_move_config',
+        method: 'GET',
+        dataType: 'json'
+      })
+      .done(function(data) {
+        if (data.status === 'ok') {
+          const level = data.level;
+          const probability = data.probability_percent;
+          const description = data.description;
+          const userRank = data.current_match.user_rank || 'unknown';
+          const userRankDesc = data.user_rank_description || '未知用户评级';
+          
+          const msg = $('<div class="chat-message"></div>').html(
+            `<div style="text-align: center; font-weight: bold; margin-bottom: 10px;">
+              ⚙️ 随机走动配置
+            </div>
+            <div style="margin-bottom: 8px;">
+              <div>当前随机走动级别: <b>${level}级 (${probability}%)</b></div>
+              <div style="color: #fd7e14;">${description}</div>
+            </div>
+            ${matchStarted ? `
+            <div style="margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+              <div>当前玩家: @${data.current_match.twitter_user || '未知'}</div>
+              <div>Twitter评级: <span style="display: inline-block; background: ${getRankColor(userRank)}; color: white; padding: 2px 8px; border-radius: 4px; margin-top: 4px;">${userRank}</span></div>
+              <div style="font-size: 0.9em; margin-top: 3px;">${userRankDesc}</div>
+            </div>
+            ` : ''}
+            <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
+              <div>随机走动级别对照表:</div>
+              <div>• 1级 (0%) - 对应Twitter A级用户</div>
+              <div>• 2级 (10%) - 对应Twitter B级用户</div>
+              <div>• 3级 (20%) - 对应Twitter C级用户</div>
+              <div>• 4级 (30%) - 对应Twitter D级用户</div>
+              <div>• 5级 (40%) - 对应Twitter E级用户</div>
+              <div>• 6级 (50%) - 对应Twitter F级用户</div>
+            </div>`
+          );
+          $('#chatContent').append(msg);
+          $('#chatContent').scrollTop($('#chatContent')[0].scrollHeight);
+          
+          $('.message').text('随机走动配置获取成功');
+          setTimeout(() => {
+            $('.message').text('');
+          }, 3000);
+        } else {
+          $('.message').text('获取随机走动配置失败');
+        }
+      })
+      .fail(function(xhr, status, error) {
+        $('.message').text(`服务器错误: ${error || status}`);
+      });
+    });
+  });
+  </script>
+</body>
+</html>
