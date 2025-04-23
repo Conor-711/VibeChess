@@ -17,3 +17,5 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
+      - key: STOCKFISH_PATH
+        value: /opt/render/project/src/bin/stockfish

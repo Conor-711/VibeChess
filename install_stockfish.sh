@@ -1,6 +1,6 @@
 #!/bin/bash
 # 这个脚本用于在Render环境中下载和安装Stockfish
-# 简化版本 - 直接下载到bin目录并设置正确的权限
+# 重写安装脚本 - 下载 tar.gz 并解压到 bin
 
 set -e  # 遇到错误立即停止
 set -x  # 显示执行的命令
@@ -19,42 +19,37 @@ BIN_DIR="$PROJECT_DIR/bin"
 mkdir -p "$BIN_DIR"
 echo "Created bin directory: $BIN_DIR"
 
-# 直接下载Stockfish可执行文件
-echo "====== 下载Stockfish可执行文件... ======"
-DOWNLOAD_URL="https://github.com/official-stockfish/Stockfish/releases/download/sf_16/stockfish-ubuntu-x86-64-avx2"
-TARGET_BIN="$BIN_DIR/stockfish"
-
-echo "Downloading from: $DOWNLOAD_URL"
-echo "Saving to: $TARGET_BIN"
-
-# 直接下载可执行文件到bin目录
-curl -L "$DOWNLOAD_URL" -o "$TARGET_BIN"
-if [ $? -ne 0 ]; then
-    echo "Failed to download Stockfish"
-    exit 1
+# OS 检测并安装 Stockfish
+if [[ "$(uname)" == "Darwin" ]]; then
+    echo "Detected macOS"
+    if ! command -v stockfish >/dev/null 2>&1; then
+        if command -v brew >/dev/null 2>&1; then
+            brew install stockfish
+        else
+            echo "Homebrew not found. 请先安装 Homebrew 或手动安装 Stockfish"
+            exit 1
+        fi
+    fi
+    STOCKFISH_PATH=$(command -v stockfish)
+else
+    echo "Detected Linux"
+    DOWNLOAD_URL="https://github.com/official-stockfish/Stockfish/releases/download/sf_16/stockfish-ubuntu-x86-64-avx2"
+    TARGET_BIN="$BIN_DIR/stockfish"
+    echo "Downloading Stockfish for Linux from: $DOWNLOAD_URL"
+    curl -L "$DOWNLOAD_URL" -o "$TARGET_BIN"
+    chmod +x "$TARGET_BIN"
+    STOCKFISH_PATH="$TARGET_BIN"
 fi
-
-# 设置可执行权限
-chmod +x "$TARGET_BIN"
-if [ $? -ne 0 ]; then
-    echo "Failed to set executable permission"
-    exit 1
-fi
-
-# 显示文件信息
-ls -la "$TARGET_BIN"
-file "$TARGET_BIN"
 
 # 设置环境变量
 echo "====== 配置环境变量... ======"
-STOCKFISH_PATH="$TARGET_BIN"
-export STOCKFISH_PATH="$STOCKFISH_PATH"
-
-# 创建环境变量文件
 echo "STOCKFISH_PATH=$STOCKFISH_PATH" > "$PROJECT_DIR/.env.stockfish"
-
-# 将bin目录添加到PATH
+export STOCKFISH_PATH="$STOCKFISH_PATH"
 export PATH="$BIN_DIR:$PATH"
+
+# 显示文件信息
+ls -la "$BIN_DIR/stockfish"
+file "$BIN_DIR/stockfish"
 
 # 验证安装
 echo "====== 验证Stockfish安装... ======"
