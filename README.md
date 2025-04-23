@@ -1,39 +1,30 @@
-# Lichess Game Analyzer
+# VibeChess
 
-这是一个用于分析Lichess国际象棋游戏的工具。该项目可以获取用户的对局数据，并提供分析功能。
+A chess game with special effects and variants, built with Python Flask backend and JavaScript frontend.
 
-## 功能特点
+## Features
 
-- 获取Lichess用户的对局数据
-- 分析棋局
-- 可视化棋盘界面
-- 使用Stockfish引擎进行棋局评估
+- Standard chess gameplay
+- Special chess variants and effects
+- Animated chess pieces
+- AI opponent using Stockfish
+- Chat functionality
+- Game history tracking
 
-## 安装
+## Setup
 
-```bash
-# 克隆仓库
-git clone https://github.com/YOUR_USERNAME/Lichess-game.git
-cd Lichess-game
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Run the application: `python backend.py`
+4. Open your browser and navigate to `http://localhost:5000`
 
-# 创建虚拟环境
-python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
-# 或者
-.venv\Scripts\activate  # Windows
+## Technologies Used
 
-# 安装依赖
-pip install -r requirements.txt
-```
+- Backend: Python, Flask
+- Frontend: HTML, CSS, JavaScript, jQuery
+- Chess Engine: Stockfish
+- Chess UI: chessboard.js
 
-## 使用方法
+## License
 
-```bash
-python backend.py
-```
-
-在浏览器中访问 `http://localhost:5000` 即可使用。
-
-## 许可证
-
-MIT 
+MIT

@@ -663,6 +663,35 @@
     }
     
     /* 冻结效果 */
+    /* 添加棋子移动动画效果 */
+    .chess-piece-moving {
+      transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+      z-index: 10 !important;
+    }
+    
+    /* 吃子效果 */
+    @keyframes capture-flash {
+      0% { background-color: rgba(255, 0, 0, 0); }
+      50% { background-color: rgba(255, 0, 0, 0.3); }
+      100% { background-color: rgba(255, 0, 0, 0); }
+    }
+    
+    .capture-effect {
+      animation: capture-flash 0.5s ease-out;
+    }
+    
+    /* 棋子抖动效果，表示无效走法 */
+    @keyframes invalid-move-shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-5px); }
+      100% { transform: translateX(0); }
+    }
+    
+    .invalid-move {
+      animation: invalid-move-shake 0.4s ease-in-out;
+    }
   </style>
 </head>
 <body>
@@ -911,7 +940,20 @@
     function showDots(moves) {
       $('.dot').remove();
       moves.forEach(m => {
-        const $sq = $('.square-' + m.to), o = $sq.offset();
+        const $sq = $('.square-' + m.to);
+        // 确保元素存在并已加载到DOM，才尝试获取其offset
+        if ($sq.length === 0 || !$sq.is(':visible')) {
+          console.log('警告: 无法找到或显示棋盘方格 ' + m.to);
+          return; // 跳过此次循环
+        }
+        
+        const o = $sq.offset();
+        // 确保offset不是undefined或null
+        if (!o) {
+          console.log('警告: 无法获取棋盘方格 ' + m.to + ' 的位置');
+          return; // 跳过此次循环
+        }
+        
         $('<div class="dot"></div>').css({
           left: o.left + $sq.width()/2 - 8,
           top : o.top  + $sq.height()/2 - 8
@@ -2329,9 +2371,21 @@
     });
 
     board = Chessboard('board', {
-      draggable: false,
+      draggable: true, // 启用拖拽
       position: 'start',
-      pieceTheme: './chessboardjs-1.0.0/img/chesspieces/wikipedia/{piece}.png'
+      pieceTheme: './chessboardjs-1.0.0/img/chesspieces/wikipedia/{piece}.png',
+      // 添加动画配置
+      animationSpeed: 250, // 动画速度，单位毫秒
+      moveSpeed: 300, // 移动速度
+      snapbackSpeed: 250, // 无效移动回弹速度
+      snapSpeed: 100, // 吃子时的捕获速度
+      trashSpeed: 200, // 棋子被吃时的离开速度
+      // 添加拖动事件处理
+      onDragStart: onDragStart,
+      onDrop: onDrop,
+      onMouseoutSquare: onMouseoutSquare,
+      onMouseoverSquare: onMouseoverSquare,
+      onSnapEnd: onSnapEnd
     });
 
     doReset();
@@ -2521,6 +2575,352 @@
         $('.message').text(`服务器错误: ${error || status}`);
       });
     });
+
+    // 处理棋子拖动开始
+    function onDragStart(source, piece, position, orientation) {
+      // 如果是等待AI或者游戏结束，不允许拖动
+      if (awaitingAI || gameOver) return false;
+      
+      // 获取当前玩家颜色
+      const sideChar = $('#side').val().charAt(0);
+      
+      // 只允许拖动自己的棋子
+      if (piece.charAt(0) !== sideChar) return false;
+      
+      // 在额外回合中，只允许特定棋子移动
+      if (bonusMoveSquare !== null && source !== bonusMoveSquare) {
+        $('.message').text('只有获得额外回合的棋子可以移动!').css('color', '#ff3d00');
+        setTimeout(() => {
+          $('.message').text('').css('color', '');
+        }, 2000);
+        
+        // 高亮显示可以移动的棋子
+        $('.square-' + bonusMoveSquare).addClass('highlight-bonus-piece');
+        setTimeout(() => {
+          $('.square-' + bonusMoveSquare).removeClass('highlight-bonus-piece');
+        }, 2000);
+        
+        return false;
+      }
+      
+      // 清除之前的高亮
+      clearHighlights();
+      selected = source;
+      
+      return true;
+    }
+    
+    // 处理鼠标悬停显示可行走法
+    function onMouseoverSquare(square, piece) {
+      // 如果不是当前玩家的棋子或正在等待AI，则不显示
+      if (awaitingAI || gameOver) return;
+      
+      const sideChar = $('#side').val().charAt(0);
+      if (!piece || piece.charAt(0) !== sideChar) return;
+      
+      // 获取合法走法
+      const p = game.get(square);
+      if (!p) return;
+      
+      const legalMoves = game.moves({square, verbose: true});
+      const specialMoves = getSpecialVariantMoves(square, p);
+      const allMoves = [...legalMoves, ...specialMoves];
+      
+      // 显示可行走法
+      showDots(allMoves);
+    }
+    
+    // 处理鼠标离开棋盘格
+    function onMouseoutSquare(square, piece) {
+      // 如果没有选中棋子，清除点
+      if (!selected) {
+        $('.dot').remove();
+      }
+    }
+    
+    // 处理棋子放下
+    function onDrop(source, target, piece, newPos, oldPos, orientation) {
+      // 如果是同一位置放下，则取消选择
+      if (source === target) {
+        clearHighlights();
+        selected = null;
+        return 'snapback';
+      }
+      
+      // 获取源棋子信息
+      const sourcePiece = game.get(source);
+      
+      // 检查是否为特殊变体走法
+      const isSpecialMove = isVariantMove(source, target, sourcePiece);
+      
+      if (isSpecialMove) {
+        // 处理特殊变体走法
+        handleVariantMoveWithAnimation(source, target, sourcePiece);
+        return 'trash'; // 不要自动移动，让我们的自定义动画处理
+      }
+      
+      // 尝试走棋
+      const move = game.move({
+        from: source,
+        to: target,
+        promotion: 'q' // 默认升变为皇后
+      });
+      
+      // 如果走法无效，返回'snapback'让棋子回到原位
+      if (move === null) {
+        // 添加无效移动的视觉反馈
+        $('.square-' + source + ' .piece-417db').addClass('invalid-move');
+        setTimeout(() => {
+          $('.square-' + source + ' .piece-417db').removeClass('invalid-move');
+        }, 400);
+        return 'snapback';
+      }
+      
+      // 如果是吃子，添加视觉效果
+      if (move.captured) {
+        $('.square-' + target).addClass('capture-effect');
+        setTimeout(() => {
+          $('.square-' + target).removeClass('capture-effect');
+        }, 500);
+      }
+      
+      // 更新棋子映射和分数
+      const moverId = pieceMap[source];
+      delete pieceMap[source];
+      pieceMap[target] = moverId;
+      if (move.captured) scoreMap[moverId] += values[move.captured];
+      updateLeaderboard();
+      
+      // 更新历史记录和高亮
+      clearHighlights();
+      $('.dot').remove();
+      selected = null;
+      appendHistory(move.san);
+      highlightLast(source, target);
+      $('.eval').text('You: ' + move.san);
+      updateChat();
+      
+      // 检查游戏是否结束
+      if (checkGameOver(source)) return;
+      
+      // 现在开始AI的回合
+      awaitingAI = true;
+      
+      // 发送走法到服务器
+      processMoveAndGetAIResponse(source, target);
+      
+      return true; // 允许chessboard.js完成移动
+    }
+    
+    // 棋子放置完成后的回调
+    function onSnapEnd() {
+      // 在这里可以做一些清理工作
+    }
+    
+    // 处理带动画的特殊变体走法
+    function handleVariantMoveWithAnimation(source, target, piece) {
+      clearHighlights();
+      $('.dot').remove();
+      selected = null;
+      
+      awaitingAI = true;
+      $('.eval').text('处理特殊变体走法...');
+      
+      // 获取棋子类型
+      const pieceType = piece.color === 'w' ? 'w' + piece.type.toUpperCase() : 'b' + piece.type.toUpperCase();
+      
+      // 获取原始位置对象，用于手动动画
+      const originalPosition = board.position();
+      
+      // 创建动画版本的移动
+      const $sourceSquare = $(`.square-${source}`);
+      const $targetSquare = $(`.square-${target}`);
+      const $piece = $sourceSquare.find('.piece-417db');
+      
+      // 如果找到了棋子，创建平滑动画
+      if ($piece.length) {
+        // 复制棋子用于动画
+        const $clonedPiece = $piece.clone();
+        $('body').append($clonedPiece);
+        
+        // 获取起始和目标位置
+        const sourcePos = $sourceSquare.offset();
+        const targetPos = $targetSquare.offset();
+        
+        // 设置克隆棋子的初始位置
+        $clonedPiece.css({
+          position: 'absolute',
+          zIndex: 9999,
+          left: sourcePos.left,
+          top: sourcePos.top,
+          width: $sourceSquare.width(),
+          height: $sourceSquare.height()
+        });
+        
+        // 隐藏原始棋子
+        $piece.css('opacity', 0);
+        
+        // 动画移动克隆棋子
+        $clonedPiece.animate({
+          left: targetPos.left,
+          top: targetPos.top
+        }, 250, function() {
+          // 动画完成后移除克隆棋子
+          $clonedPiece.remove();
+          
+          // 更新棋盘位置
+          originalPosition[target] = pieceType;
+          delete originalPosition[source];
+          board.position(originalPosition, false);
+          
+          // 更新历史记录和高亮
+          appendHistory(`${piece.color === 'w' ? '白' : '黑'}${getPieceSymbol(piece.type)}[特殊]${source}-${target}`);
+          highlightLast(source, target);
+          
+          // 发送特殊变体走法请求
+          $.ajax({
+            url: '/move',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+              move: source + target,
+              variant_move: true
+            }),
+            dataType: 'json'
+          })
+          .done(function(data) {
+            console.log('特殊变体走法服务器响应:', data);
+            
+            if (data.status !== 'success') {
+              $('.message').text('无效走法').css('color', '#dc3545');
+              awaitingAI = false;
+              setTimeout(() => {
+                $('.message').text('').css('color', '');
+              }, 2000);
+              return;
+            }
+            
+            // 处理服务器响应
+            processServerResponse(data);
+          })
+          .fail(function(error) {
+            console.error('特殊变体走法请求失败:', error);
+            $('.message').text('请求失败，请重试').css('color', '#dc3545');
+            awaitingAI = false;
+          });
+        });
+      } else {
+        // 如果找不到DOM元素，回退到非动画版本
+        console.warn('找不到棋子DOM元素，回退到非动画版本');
+        handleVariantMove(source, target, piece);
+      }
+    }
+    
+    // 处理服务器响应的公共函数
+    function processServerResponse(data) {
+      console.log('处理服务器响应:', data);
+      
+      // 如果服务器响应无效
+      if (data.status !== 'success') {
+        $('.message').text('无效走法');
+        awaitingAI = false;
+        return;
+      }
+      
+      // 检查是否有随机走法数据
+      if (data.random_move_applied) {
+        handleRandomMoveResponse(data);
+      } else if (data.special_effect) {
+        handleSpecialEffectResponse(data);
+      } else if (data.ai_move) {
+        handleAIMoveResponse(data);
+      } else {
+        // 如果没有特殊数据，只更新棋盘
+        board.position(data.fen, true); // 使用动画
+        game.load(data.fen);
+        awaitingAI = false;
+      }
+    }
+    
+    // 处理AI常规走法的响应
+    function handleAIMoveResponse(data) {
+      const from = data.ai_move.slice(0, 2);
+      const to = data.ai_move.slice(2, 4);
+      
+      // 检查是否是吃子
+      const isCapture = data.ai_move.includes('x');
+      
+      // 添加吃子效果
+      if (isCapture) {
+        $('.square-' + to).addClass('capture-effect');
+        setTimeout(() => {
+          $('.square-' + to).removeClass('capture-effect');
+        }, 500);
+      }
+      
+      // 更新棋盘和游戏状态
+      board.position(data.fen, true); // 使用动画
+      game.load(data.fen);
+      
+      // 更新历史记录和高亮
+      appendHistory('... ' + data.ai_move);
+      highlightLast(from, to);
+      $('.eval').text('AI: ' + data.ai_move);
+      
+      // 更新聊天
+      updateChat();
+      
+      // 结束AI等待状态
+      awaitingAI = false;
+      
+      // 检查游戏是否结束
+      checkGameOver(to);
+    }
+    
+    // 处理随机走法响应
+    function handleRandomMoveResponse(data) {
+      // ... existing random move handling ...
+      
+      // 只修改最后的渲染部分，使用动画版本
+      console.log('从服务器返回的FEN加载棋盘状态:', data.fen);
+      board.position(data.fen, true); // 使用动画
+      game.load(data.fen);
+      
+      // ... 其余的随机走法处理不变 ...
+    }
+    
+    // 处理特殊效果响应
+    function handleSpecialEffectResponse(data) {
+      // ... existing special effect handling ...
+      
+      // 只修改最后的渲染部分，使用动画版本
+      console.log('从服务器返回的FEN加载棋盘状态:', data.fen);
+      board.position(data.fen, true); // 使用动画
+      game.load(data.fen);
+      
+      // ... 其余的特殊效果处理不变 ...
+    }
+    
+    // 处理常规走棋并获取AI响应
+    function processMoveAndGetAIResponse(source, target) {
+      console.log('发送常规走法请求:', {move: source + target});
+      
+      $.ajax({
+        url: '/move',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ move: source + target }),
+        dataType: 'json'
+      })
+      .done(function(data) {
+        processServerResponse(data);
+      })
+      .fail(function(error) {
+        console.error('走棋请求失败:', error);
+        $('.message').text('请求失败，请重试').css('color', '#dc3545');
+        awaitingAI = false;
+      });
+    }
   });
   </script>
 </body>
