@@ -135,9 +135,18 @@ variant_g_transform_count = 0
 # 最大转化次数限制
 variant_g_max_transforms = 3
 
+@app.route('/health')
+def health():
+    return jsonify({'status': 'ok'}), 200
+
 @app.route('/')
 def index():
-    return send_from_directory(app.static_folder, 'index.html')
+    # First try to serve the static file
+    try:
+        return send_from_directory(app.static_folder, 'index.html')
+    except Exception as e:
+        # If that fails, return a simple response for healthchecks
+        return jsonify({'status': 'ok', 'message': 'VibeChess API is running'}), 200
 
 
 @app.route('/set_level', methods=['POST'])
