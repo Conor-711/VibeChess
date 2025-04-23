@@ -4,7 +4,6 @@
     "buildCommand": "pip install --upgrade pip && pip install -r requirements.txt"
   },
   "deploy": {
-    "startCommand": "python backend.py",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
