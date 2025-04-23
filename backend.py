@@ -28,7 +28,6 @@ board = chess.Board()
 try:
     # 尝试不同可能的stockfish路径
     possible_stockfish_paths = [
-        "./stockfish/stockfish",                 # Railway 环境中的路径
         "./stockfish-macos-m1-apple-silicon",  # 原始路径
         "./stockfish",                          # 普通命名
         "/usr/local/bin/stockfish",             # 系统安装路径
@@ -36,48 +35,31 @@ try:
         "stockfish"                             # 如果在PATH中
     ]
     
-    # 检查是否在Railway环境中
-    is_railway = 'RAILWAY_ENVIRONMENT' in os.environ
-    if is_railway:
-        print("检测到Railway环境，使用特定配置", file=sys.stderr)
-        # 在Railway环境中，我们可能需要使用不同的初始化方式
+    stockfish_path = None
+    for path in possible_stockfish_paths:
         try:
-            print("在Railway环境中尝试不指定路径加载Stockfish", file=sys.stderr)
-            stockfish = Stockfish()
-            print("成功在Railway环境中加载Stockfish", file=sys.stderr)
-            # 设置难度等级
-            stockfish.set_skill_level(5)
-            # 跳过下面的路径检查
-            stockfish_path = "railway_env"
+            print(f"尝试加载Stockfish，路径: {path}", file=sys.stderr)
+            stockfish = Stockfish(path=path)
+            stockfish_path = path
+            print(f"成功加载Stockfish，使用路径: {path}", file=sys.stderr)
+            break
         except Exception as e:
-            print(f"Railway环境中加载Stockfish失败: {e}", file=sys.stderr)
-            stockfish_path = None
-    else:
-        stockfish_path = None
-        for path in possible_stockfish_paths:
-            try:
-                print(f"尝试加载Stockfish，路径: {path}", file=sys.stderr)
-                stockfish = Stockfish(path=path)
-                stockfish_path = path
-                print(f"成功加载Stockfish，使用路径: {path}", file=sys.stderr)
-                break
-            except Exception as e:
-                print(f"路径 {path} 加载失败: {e}", file=sys.stderr)
-        
-        if stockfish_path is None:
-            # 如果所有路径都失败，尝试使用不带路径的初始化（依赖系统PATH）
-            try:
-                print("尝试不指定路径加载Stockfish", file=sys.stderr)
-                stockfish = Stockfish()
-                print("成功使用系统PATH加载Stockfish", file=sys.stderr)
-            except Exception as e:
-                print(f"无法加载Stockfish，尝试最后的备选方案: {e}", file=sys.stderr)
-                # 最后的备选方案 - 抛出异常并提供安装指南
-                raise FileNotFoundError("无法找到Stockfish引擎。请确保已安装Stockfish，并设置正确的路径。" + 
-                                       "可以通过以下方式安装:\n" +
-                                       "- Mac: brew install stockfish\n" +
-                                       "- Linux: apt install stockfish\n" +
-                                       "- 或从 https://stockfishchess.org/download/ 下载")
+            print(f"路径 {path} 加载失败: {e}", file=sys.stderr)
+    
+    if stockfish_path is None:
+        # 如果所有路径都失败，尝试使用不带路径的初始化（依赖系统PATH）
+        try:
+            print("尝试不指定路径加载Stockfish", file=sys.stderr)
+            stockfish = Stockfish()
+            print("成功使用系统PATH加载Stockfish", file=sys.stderr)
+        except Exception as e:
+            print(f"无法加载Stockfish，尝试最后的备选方案: {e}", file=sys.stderr)
+            # 最后的备选方案 - 抛出异常并提供安装指南
+            raise FileNotFoundError("无法找到Stockfish引擎。请确保已安装Stockfish，并设置正确的路径。" + 
+                                   "可以通过以下方式安装:\n" +
+                                   "- Mac: brew install stockfish\n" +
+                                   "- Linux: apt install stockfish\n" +
+                                   "- 或从 https://stockfishchess.org/download/ 下载")
     
     # 设置难度等级
     stockfish.set_skill_level(5)
@@ -135,18 +117,9 @@ variant_g_transform_count = 0
 # 最大转化次数限制
 variant_g_max_transforms = 3
 
-@app.route('/health')
-def health():
-    return jsonify({'status': 'ok'}), 200
-
 @app.route('/')
 def index():
-    # First try to serve the static file
-    try:
-        return send_from_directory(app.static_folder, 'index.html')
-    except Exception as e:
-        # If that fails, return a simple response for healthchecks
-        return jsonify({'status': 'ok', 'message': 'VibeChess API is running'}), 200
+    return send_from_directory(app.static_folder, 'index.html')
 
 
 @app.route('/set_level', methods=['POST'])
@@ -734,7 +707,7 @@ def move():
             elif current_match_info.get('user_rank') == 'F':
                 transform_probability = 0.35  # F级：30%
             elif current_match_info.get('user_rank') == 'G':
-                transform_probability = 0.39  # G级：30%
+                transform_probability = 0.37  # G级：30%
             
             transform_chance = random.random()
             print(f"变体G: 棋子转换概率计算: {transform_chance} < {transform_probability} = {transform_chance < transform_probability}", file=sys.stderr)
@@ -1738,5 +1711,4 @@ def get_random_move_config():
     return jsonify(response)
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(debug=True)
