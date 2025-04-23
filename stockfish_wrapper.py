@@ -79,8 +79,9 @@ class StockfishWrapper:
             
             # 启动Stockfish进程
             print("\n---------- 尝试启动Stockfish进程 ----------", file=sys.stderr)
+            print(f"使用绝对路径启动Stockfish: {os.path.abspath(self.stockfish_path)}", file=sys.stderr)
             self.process = subprocess.Popen(
-                self.stockfish_path,
+                os.path.abspath(self.stockfish_path),  # 确保使用绝对路径
                 universal_newlines=True,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -97,10 +98,16 @@ class StockfishWrapper:
             print("\n*** Stockfish引擎成功初始化 ***", file=sys.stderr)
         except Exception as e:
             print(f"\n*** 启动Stockfish引擎失败: {e} ***", file=sys.stderr)
-            print("\n尝试手动测试Stockfish执行文件:", file=sys.stderr)
+            # 尝试手动测试Stockfish执行文件 - 使用绝对路径
             try:
-                test_result = subprocess.run([self.stockfish_path, "--version"], 
-                                          capture_output=True, text=True, timeout=2)
+                abs_path = os.path.abspath(self.stockfish_path)
+                print(f"尝试使用绝对路径测试Stockfish: {abs_path}", file=sys.stderr)
+                test_result = subprocess.run(
+                    [abs_path, '--version'], 
+                    capture_output=True, 
+                    text=True, 
+                    timeout=5
+                )
                 print(f"\u8fd4回码: {test_result.returncode}", file=sys.stderr)
                 print(f"\u6807准输出: {test_result.stdout}", file=sys.stderr)
                 print(f"\u9519误输出: {test_result.stderr}", file=sys.stderr)
@@ -110,13 +117,15 @@ class StockfishWrapper:
             raise
     
     def _find_stockfish_path(self):
-        """查找Stockfish引擎路径"""
-        # 首先检查项目中的bin目录
-        project_bin = Path(__file__).parent / "bin" / "stockfish"
-        if project_bin.exists() and os.access(str(project_bin), os.X_OK):
-            path = str(project_bin)
-            print(f"从项目的bin目录找到Stockfish: {path}", file=sys.stderr)
-            return path
+        # 获取项目的绝对路径
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        print(f"项目绝对路径: {base_dir}", file=sys.stderr)
+        
+        # 首先检查项目中的bin目录 - 使用绝对路径
+        project_bin = os.path.join(base_dir, "bin", "stockfish")
+        if os.path.exists(project_bin) and os.access(project_bin, os.X_OK):
+            print(f"从项目的bin目录找到Stockfish: {project_bin}", file=sys.stderr)
+            return project_bin
             
         # 然后检查环境变量
         if 'STOCKFISH_PATH' in os.environ:
@@ -124,52 +133,78 @@ class StockfishWrapper:
             print(f"从环境变量找到Stockfish路径: {path}", file=sys.stderr)
             return path
         
-        # 检查.env.stockfish文件
-        env_file = Path(__file__).parent / ".env.stockfish"
-        if env_file.exists():
+        # 检查.env.stockfish文件 - 使用绝对路径
+        env_file = os.path.join(base_dir, ".env.stockfish")
+        if os.path.exists(env_file):
             try:
                 with open(env_file, 'r') as f:
                     for line in f:
                         if line.startswith('STOCKFISH_PATH='):
                             path = line.strip().split('=', 1)[1]
+                            # 如果路径不是绝对路径，转换为绝对路径
+                            if not os.path.isabs(path):
+                                path = os.path.abspath(os.path.join(base_dir, path))
+                                print(f"将相对路径转换为绝对路径: {path}", file=sys.stderr)
                             if os.path.exists(path) and os.access(path, os.X_OK):
                                 print(f"从.env.stockfish文件找到Stockfish路径: {path}", file=sys.stderr)
                                 return path
             except Exception as e:
                 print(f"读取.env.stockfish文件时出错: {e}", file=sys.stderr)
         
-        # 检查常见路径
+        # 使用绝对路径
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        print(f"项目基础目录: {base_dir}", file=sys.stderr)
+        
+        # 检查常见路径 - 全部使用绝对路径
         common_paths = [
-            './bin/stockfish',                    # 项目的bin目录（相对路径）
-            '/opt/render/project/src/bin/stockfish', # Render环境中的项目路径
-            '/usr/games/stockfish',               # Debian/Ubuntu位置
-            '/usr/bin/stockfish',                 # Linux常见位置
-            '/usr/local/bin/stockfish',           # macOS常见位置
-            '/opt/homebrew/bin/stockfish',        # macOS Homebrew
-            'stockfish',                          # 如果在PATH中
-            './stockfish',                        # 当前目录
+            os.path.join(base_dir, 'bin', 'stockfish'),        # 项目的bin目录
+            os.path.join(base_dir, 'stockfish', 'stockfish'),  # 项目的stockfish目录
+            '/opt/render/project/src/bin/stockfish',           # Render环境中的项目路径
+            '/usr/games/stockfish',                             # Debian/Ubuntu位置
+            '/usr/bin/stockfish',                               # Linux常见位置
+            '/usr/local/bin/stockfish',                         # macOS常见位置
+            '/opt/homebrew/bin/stockfish',                      # macOS Homebrew
         ]
         
-        # 检查项目中的stockfish目录
-        stockfish_dir = Path(__file__).parent / 'stockfish'
-        if stockfish_dir.exists():
-            for item in stockfish_dir.glob('**/*'):
-                if item.is_file() and item.name.startswith('stockfish'):
-                    if os.access(str(item), os.X_OK):
-                        return str(item)
+        # 打印所有路径以便调试
+        print("\n检查以下绝对路径:", file=sys.stderr)
+        for path in common_paths:
+            print(f"  - {path}", file=sys.stderr)
+        
+        # 检查项目中的stockfish目录 - 使用绝对路径
+        stockfish_dir = os.path.join(base_dir, 'stockfish')
+        if os.path.exists(stockfish_dir):
+            print(f"检查stockfish目录: {stockfish_dir}", file=sys.stderr)
+            # 列出目录内容
+            try:
+                for root, dirs, files in os.walk(stockfish_dir):
+                    for file in files:
+                        if file.startswith('stockfish'):
+                            full_path = os.path.join(root, file)
+                            if os.access(full_path, os.X_OK):
+                                print(f"在stockfish目录中找到可执行文件: {full_path}", file=sys.stderr)
+                                return full_path
+            except Exception as e:
+                print(f"遍历stockfish目录时出错: {e}", file=sys.stderr)
         
         # 尝试常见路径
         for path in common_paths:
             if os.path.exists(path) and os.access(path, os.X_OK):
                 return path
         
-        # 尝试使用which命令
+        # 尝试使用which命令 - 确保返回的是绝对路径
         try:
+            print("尝试使用which命令查找stockfish", file=sys.stderr)
             result = subprocess.run(['which', 'stockfish'], capture_output=True, text=True)
             if result.returncode == 0:
-                return result.stdout.strip()
-        except:
-            pass
+                path = result.stdout.strip()
+                if os.path.isabs(path):
+                    print(f"which命令找到Stockfish: {path}", file=sys.stderr)
+                    return path
+                else:
+                    print(f"which命令返回的不是绝对路径: {path}", file=sys.stderr)
+        except Exception as e:
+            print(f"执行which命令时出错: {e}", file=sys.stderr)
         
         return None
     
