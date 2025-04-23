@@ -1,0 +1,250 @@
+"""
+自定义Stockfish引擎包装器，不依赖stockfish包
+直接使用subprocess与Stockfish引擎通信
+"""
+
+import os
+import sys
+import subprocess
+import time
+import atexit
+from pathlib import Path
+
+class StockfishWrapper:
+    """Stockfish引擎的简单包装器"""
+    
+    def __init__(self, path=None, depth=10, parameters=None):
+        """
+        初始化Stockfish引擎
+        
+        Args:
+            path: Stockfish可执行文件的路径，如果为None则尝试自动查找
+            depth: 搜索深度
+            parameters: 引擎参数字典
+        """
+        self.depth = depth
+        self.parameters = parameters or {}
+        self.stockfish_path = path or self._find_stockfish_path()
+        
+        if not self.stockfish_path:
+            print("无法找到Stockfish引擎路径", file=sys.stderr)
+            raise FileNotFoundError("无法找到Stockfish引擎")
+        
+        print(f"使用Stockfish路径: {self.stockfish_path}", file=sys.stderr)
+        
+        try:
+            # 启动Stockfish进程
+            self.process = subprocess.Popen(
+                self.stockfish_path,
+                universal_newlines=True,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            
+            # 确保进程在Python退出时关闭
+            atexit.register(self.quit)
+            
+            # 设置引擎参数
+            self._configure_engine()
+            
+            print("Stockfish引擎成功初始化", file=sys.stderr)
+        except Exception as e:
+            print(f"启动Stockfish引擎失败: {e}", file=sys.stderr)
+            raise
+    
+    def _find_stockfish_path(self):
+        """查找Stockfish引擎路径"""
+        # 首先检查环境变量
+        if 'STOCKFISH_PATH' in os.environ:
+            path = os.environ['STOCKFISH_PATH']
+            print(f"从环境变量找到Stockfish路径: {path}", file=sys.stderr)
+            return path
+        
+        # 检查常见路径
+        common_paths = [
+            '/opt/render/project/bin/stockfish',  # 我们自定义安装的位置
+            '/usr/games/stockfish',               # Debian/Ubuntu位置
+            '/usr/bin/stockfish',                 # Linux常见位置
+            '/usr/local/bin/stockfish',           # macOS常见位置
+            '/opt/homebrew/bin/stockfish',        # macOS Homebrew
+            'stockfish',                          # 如果在PATH中
+            './stockfish',                        # 当前目录
+        ]
+        
+        # 检查项目中的stockfish目录
+        stockfish_dir = Path(__file__).parent / 'stockfish'
+        if stockfish_dir.exists():
+            for item in stockfish_dir.glob('**/*'):
+                if item.is_file() and item.name.startswith('stockfish'):
+                    if os.access(str(item), os.X_OK):
+                        return str(item)
+        
+        # 尝试常见路径
+        for path in common_paths:
+            if os.path.exists(path) and os.access(path, os.X_OK):
+                return path
+        
+        # 尝试使用which命令
+        try:
+            result = subprocess.run(['which', 'stockfish'], capture_output=True, text=True)
+            if result.returncode == 0:
+                return result.stdout.strip()
+        except:
+            pass
+        
+        return None
+    
+    def _configure_engine(self):
+        """配置引擎参数"""
+        # 设置UCI模式
+        self._send_command("uci")
+        
+        # 设置技能等级和其他参数
+        for name, value in self.parameters.items():
+            self._send_command(f"setoption name {name} value {value}")
+        
+        # 准备就绪
+        self._send_command("isready")
+        self._read_output_until("readyok")
+    
+    def _send_command(self, command):
+        """向引擎发送命令"""
+        try:
+            self.process.stdin.write(command + "\n")
+            self.process.stdin.flush()
+        except Exception as e:
+            print(f"发送命令失败: {e}", file=sys.stderr)
+    
+    def _read_output_until(self, marker=None, timeout=5):
+        """读取引擎输出直到遇到标记或超时"""
+        output = []
+        start_time = time.time()
+        
+        while True:
+            if self.process.stdout.readable():
+                line = self.process.stdout.readline().strip()
+                if line:
+                    output.append(line)
+                    if marker and marker in line:
+                        break
+            
+            if marker is None:
+                break
+                
+            if time.time() - start_time > timeout:
+                print(f"读取输出超时，未找到标记: {marker}", file=sys.stderr)
+                break
+            
+            time.sleep(0.001)
+        
+        return output
+    
+    def set_position(self, fen=None, moves=None):
+        """设置棋盘位置"""
+        position_cmd = "position"
+        
+        if fen:
+            position_cmd += f" fen {fen}"
+        else:
+            position_cmd += " startpos"
+            
+        if moves:
+            position_cmd += f" moves {' '.join(moves)}"
+            
+        self._send_command(position_cmd)
+    
+    def get_best_move(self, time_limit=None):
+        """获取最佳走法"""
+        if time_limit:
+            self._send_command(f"go movetime {time_limit}")
+        else:
+            self._send_command(f"go depth {self.depth}")
+            
+        output = self._read_output_until("bestmove")
+        
+        for line in output:
+            if line.startswith("bestmove"):
+                return line.split()[1]
+        
+        return None
+    
+    def set_skill_level(self, skill_level):
+        """设置技能等级 (0-20)"""
+        if not 0 <= skill_level <= 20:
+            raise ValueError("技能等级必须在0-20之间")
+            
+        # Stockfish使用的参数
+        self.parameters["Skill Level"] = skill_level
+        self._send_command(f"setoption name Skill Level value {skill_level}")
+    
+    def get_evaluation(self):
+        """获取当前局面的评估
+        
+        返回格式与原始Stockfish包兼容: {'type': 'cp', 'value': 12}
+        """
+        self._send_command("eval")
+        output = self._read_output_until(None)
+        
+        # 默认评估
+        evaluation = {'type': 'cp', 'value': 0}
+        
+        # 尝试从输出中解析评估值
+        for line in output:
+            if "Final evaluation" in line:
+                try:
+                    # 解析评估值，例如 "Final evaluation: +0.25 (white side)"
+                    parts = line.split()
+                    value_str = parts[2]
+                    if value_str.startswith("+"):
+                        value_str = value_str[1:]
+                    value = float(value_str) * 100  # 转换为厘兵值
+                    
+                    if "(white side)" in line:
+                        evaluation = {'type': 'cp', 'value': int(value)}
+                    else:
+                        evaluation = {'type': 'cp', 'value': -int(value)}
+                    break
+                except Exception as e:
+                    print(f"解析评估值时出错: {e}", file=sys.stderr)
+            elif "mate" in line.lower():
+                try:
+                    # 尝试解析将军步数
+                    if "Mate in" in line:
+                        mate_in = int(line.split("Mate in")[1].strip().split()[0])
+                        evaluation = {'type': 'mate', 'value': mate_in}
+                    break
+                except Exception as e:
+                    print(f"解析将军步数时出错: {e}", file=sys.stderr)
+        
+        return evaluation
+    
+    def quit(self):
+        """关闭引擎"""
+        if hasattr(self, 'process') and self.process:
+            try:
+                self._send_command("quit")
+                self.process.terminate()
+                self.process = None
+            except:
+                pass
+
+
+# 简单测试
+if __name__ == "__main__":
+    try:
+        engine = StockfishWrapper()
+        print(f"Stockfish引擎路径: {engine.stockfish_path}")
+        
+        # 设置初始位置
+        engine.set_position()
+        
+        # 获取最佳走法
+        best_move = engine.get_best_move()
+        print(f"最佳走法: {best_move}")
+        
+        # 关闭引擎
+        engine.quit()
+    except Exception as e:
+        print(f"测试失败: {e}")
+        sys.exit(1)

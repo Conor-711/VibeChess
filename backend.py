@@ -4,7 +4,8 @@ import traceback
 from dotenv import load_dotenv          # 1️⃣
 from flask import Flask, request, jsonify, send_from_directory
 import chess
-from stockfish import Stockfish
+# 使用我们自定义的StockfishWrapper代替原始的Stockfish类
+from stockfish_wrapper import StockfishWrapper
 from openai import OpenAI
 import asyncio
 import get_id
@@ -24,64 +25,20 @@ def not_found_error(error):
 # 初始化国际象棋棋盘和 Stockfish
 board = chess.Board()
 
-# 使用stockfish_config模块来找到Stockfish引擎的路径
+# 使用我们的StockfishWrapper类初始化Stockfish引擎
 try:
-    # 导入stockfish_config模块
-    import stockfish_config
+    print("尝试初始化StockfishWrapper...", file=sys.stderr)
     
-    # 获取Stockfish引擎路径
-    stockfish_path = stockfish_config.find_stockfish_path()
-    if not stockfish_path:
-        print("尝试检查Stockfish安装", file=sys.stderr)
-        stockfish_path = stockfish_config.check_stockfish_installation()
+    # 直接使用StockfishWrapper，它会自动查找Stockfish路径
+    stockfish = StockfishWrapper(depth=15, parameters={
+        "Threads": 2,
+        "Hash": 32,
+        "Skill Level": 5
+    })
     
-    if not stockfish_path:
-        # 如果仍然找不到，尝试一些常见路径
-        possible_stockfish_paths = [
-            "./stockfish-macos-m1-apple-silicon",  # 原始路径
-            "./stockfish",                          # 普通命名
-            "/usr/local/bin/stockfish",             # 系统安装路径
-            "/opt/homebrew/bin/stockfish",          # Homebrew安装路径
-            "/usr/games/stockfish",                 # Debian/Ubuntu位置
-            "stockfish"                             # 如果在PATH中
-        ]
-        
-        for path in possible_stockfish_paths:
-            try:
-                print(f"尝试加载Stockfish，路径: {path}", file=sys.stderr)
-                stockfish = Stockfish(path=path)
-                stockfish_path = path
-                print(f"成功加载Stockfish，使用路径: {path}", file=sys.stderr)
-                break
-            except Exception as e:
-                print(f"路径 {path} 加载失败: {e}", file=sys.stderr)
-    else:
-        # 使用找到的路径初始化Stockfish
-        try:
-            print(f"使用找到的路径加载Stockfish: {stockfish_path}", file=sys.stderr)
-            stockfish = Stockfish(path=stockfish_path)
-            print(f"成功加载Stockfish，使用路径: {stockfish_path}", file=sys.stderr)
-        except Exception as e:
-            print(f"使用找到的路径 {stockfish_path} 加载失败: {e}", file=sys.stderr)
-            stockfish_path = None
+    print(f"成功初始化StockfishWrapper，使用路径: {stockfish.stockfish_path}", file=sys.stderr)
     
-    if stockfish_path is None:
-        # 如果所有路径都失败，尝试使用不带路径的初始化（依赖系统PATH）
-        try:
-            print("尝试不指定路径加载Stockfish", file=sys.stderr)
-            stockfish = Stockfish()
-            print("成功使用系统PATH加载Stockfish", file=sys.stderr)
-        except Exception as e:
-            print(f"无法加载Stockfish，尝试最后的备选方案: {e}", file=sys.stderr)
-            # 最后的备选方案 - 抛出异常并提供安装指南
-            raise FileNotFoundError("无法找到Stockfish引擎。请确保已安装Stockfish，并设置正确的路径。" + 
-                                   "可以通过以下方式安装:\n" +
-                                   "- Mac: brew install stockfish\n" +
-                                   "- Linux: apt install stockfish\n" +
-                                   "- 或从 https://stockfishchess.org/download/ 下载")
-    
-    # 设置难度等级
-    stockfish.set_skill_level(5)
+    # 已经在初始化时设置了技能等级
 except Exception as e:
     print(f"严重错误：Stockfish初始化失败: {e}", file=sys.stderr)
     print("程序将退出。请安装Stockfish并重试。", file=sys.stderr)
@@ -245,7 +202,7 @@ def set_side():
             is_bonus_move_round = False
             bonus_move_piece_square = None
             
-        stockfish.set_fen_position(board.fen())
+        stockfish.set_position(fen=board.fen())
         ai_move = stockfish.get_best_move()
         
         # 防御性检查：确保AI移动有效
@@ -265,7 +222,7 @@ def set_side():
         try:
             # 安全执行AI走法
             board.push_uci(ai_move)
-            stockfish.set_fen_position(board.fen())
+            stockfish.set_position(fen=board.fen())
             evaluation = stockfish.get_evaluation()
             
             response = {
@@ -364,11 +321,11 @@ def move():
             # 直接从传来的FEN设置棋盘状态
             board.set_fen(fen)
             # AI应答
-            stockfish.set_fen_position(board.fen())
+            stockfish.set_position(fen=board.fen())
             ai_move = stockfish.get_best_move()
             board.push_uci(ai_move)
             # 评估
-            stockfish.set_fen_position(board.fen())
+            stockfish.set_position(fen=board.fen())
             evaluation = stockfish.get_evaluation()
             
             return jsonify({
@@ -563,7 +520,7 @@ def move():
                 
                 # AI应答 - 获取最佳走法
                 print(f"设置Stockfish位置并计算AI应答", file=sys.stderr)
-                stockfish.set_fen_position(player_move_complete_fen)
+                stockfish.set_position(fen=player_move_complete_fen)
                 ai_move = stockfish.get_best_move()
                 print(f"AI走法: {ai_move}", file=sys.stderr)
                 
@@ -629,7 +586,7 @@ def move():
                         board.set_fen(player_move_complete_fen)
                 
                 # 评估最终局面
-                stockfish.set_fen_position(board.fen())
+                stockfish.set_position(fen=board.fen())
                 evaluation = stockfish.get_evaluation()
                 
                 response = {
@@ -797,7 +754,7 @@ def move():
     board.push(move_obj)
     
     # AI 应答
-    stockfish.set_fen_position(board.fen())
+    stockfish.set_position(fen=board.fen())
     
     # 检查是否有被冻结的棋子，如果变体状态为E且被冻结的棋子存在，则在AI走子前处理
     ai_piece_frozen = False
@@ -823,7 +780,7 @@ def move():
             for move in valid_moves:
                 temp_board.set_fen(board.fen())
                 temp_board.push(move)
-                stockfish.set_fen_position(temp_board.fen())
+                stockfish.set_position(fen=temp_board.fen())
                 eval_result = stockfish.get_evaluation()
                 
                 current_score = 0
@@ -1162,7 +1119,7 @@ def move():
             print(f"变体G: {variant_g_msg}", file=sys.stderr)
     
     # 评估
-    stockfish.set_fen_position(board.fen())
+    stockfish.set_position(fen=board.fen())
     evaluation = stockfish.get_evaluation()
 
     response = {
