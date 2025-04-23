@@ -24,27 +24,46 @@ def not_found_error(error):
 # 初始化国际象棋棋盘和 Stockfish
 board = chess.Board()
 
-# 尝试加载stockfish引擎，根据不同系统路径进行适配
+# 使用stockfish_config模块来找到Stockfish引擎的路径
 try:
-    # 尝试不同可能的stockfish路径
-    possible_stockfish_paths = [
-        "./stockfish-macos-m1-apple-silicon",  # 原始路径
-        "./stockfish",                          # 普通命名
-        "/usr/local/bin/stockfish",             # 系统安装路径
-        "/opt/homebrew/bin/stockfish",          # Homebrew安装路径
-        "stockfish"                             # 如果在PATH中
-    ]
+    # 导入stockfish_config模块
+    import stockfish_config
     
-    stockfish_path = None
-    for path in possible_stockfish_paths:
+    # 获取Stockfish引擎路径
+    stockfish_path = stockfish_config.find_stockfish_path()
+    if not stockfish_path:
+        print("尝试检查Stockfish安装", file=sys.stderr)
+        stockfish_path = stockfish_config.check_stockfish_installation()
+    
+    if not stockfish_path:
+        # 如果仍然找不到，尝试一些常见路径
+        possible_stockfish_paths = [
+            "./stockfish-macos-m1-apple-silicon",  # 原始路径
+            "./stockfish",                          # 普通命名
+            "/usr/local/bin/stockfish",             # 系统安装路径
+            "/opt/homebrew/bin/stockfish",          # Homebrew安装路径
+            "/usr/games/stockfish",                 # Debian/Ubuntu位置
+            "stockfish"                             # 如果在PATH中
+        ]
+        
+        for path in possible_stockfish_paths:
+            try:
+                print(f"尝试加载Stockfish，路径: {path}", file=sys.stderr)
+                stockfish = Stockfish(path=path)
+                stockfish_path = path
+                print(f"成功加载Stockfish，使用路径: {path}", file=sys.stderr)
+                break
+            except Exception as e:
+                print(f"路径 {path} 加载失败: {e}", file=sys.stderr)
+    else:
+        # 使用找到的路径初始化Stockfish
         try:
-            print(f"尝试加载Stockfish，路径: {path}", file=sys.stderr)
-            stockfish = Stockfish(path=path)
-            stockfish_path = path
-            print(f"成功加载Stockfish，使用路径: {path}", file=sys.stderr)
-            break
+            print(f"使用找到的路径加载Stockfish: {stockfish_path}", file=sys.stderr)
+            stockfish = Stockfish(path=stockfish_path)
+            print(f"成功加载Stockfish，使用路径: {stockfish_path}", file=sys.stderr)
         except Exception as e:
-            print(f"路径 {path} 加载失败: {e}", file=sys.stderr)
+            print(f"使用找到的路径 {stockfish_path} 加载失败: {e}", file=sys.stderr)
+            stockfish_path = None
     
     if stockfish_path is None:
         # 如果所有路径都失败，尝试使用不带路径的初始化（依赖系统PATH）
