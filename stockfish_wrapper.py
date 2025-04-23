@@ -111,6 +111,22 @@ class StockfishWrapper:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         print(f"项目绝对路径: {base_dir}", file=sys.stderr)
         
+        # 尝试读取 .env.stockfish 文件
+        env_file = os.path.join(base_dir, ".env.stockfish")
+        if os.path.exists(env_file):
+            try:
+                with open(env_file, 'r') as f:
+                    for line in f:
+                        if line.startswith('STOCKFISH_PATH='):
+                            path = line.strip().split('=', 1)[1]
+                            if not os.path.isabs(path):
+                                path = os.path.abspath(os.path.join(base_dir, path))
+                            if os.path.exists(path) and os.access(path, os.X_OK):
+                                print(f"从.env.stockfish文件找到可执行的Stockfish: {path}", file=sys.stderr)
+                                return path
+            except Exception as e:
+                print(f"读取.env.stockfish文件时出错: {e}", file=sys.stderr)
+        
         # 硬编码路径列表 - 按优先级排序
         paths = [
             # Render环境中的路径
