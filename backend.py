@@ -14,6 +14,7 @@ import time
 
 # 加载 .env 文件中的环境变量
 load_dotenv()                            # 2️⃣
+load_dotenv('.env.stockfish')  # 载入 Stockfish 路径环境变量
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 
