@@ -1,0 +1,16 @@
+{
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "apt-get update && apt-get install -y stockfish && pip install -r requirements.txt"
+  },
+  "deploy": {
+    "startCommand": "python backend.py",
+    "healthcheckPath": "/",
+    "healthcheckTimeout": 100,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  },
+  "variables": {
+    "RAILWAY_ENVIRONMENT": "true"
+  }
+}
