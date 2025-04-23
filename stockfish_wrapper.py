@@ -22,18 +22,63 @@ class StockfishWrapper:
             depth: 搜索深度
             parameters: 引擎参数字典
         """
+        print("========== StockfishWrapper初始化开始 ===========", file=sys.stderr)
+        print(f"Python工作目录: {os.getcwd()}", file=sys.stderr)
+        print(f"Python脚本路径: {__file__}", file=sys.stderr)
+        print(f"Python环境变量 PATH: {os.environ.get('PATH', '')}", file=sys.stderr)
+        
         self.depth = depth
         self.parameters = parameters or {}
+        
+        # 查找Stockfish路径
+        print("---------- 开始查找Stockfish路径 ----------", file=sys.stderr)
         self.stockfish_path = path or self._find_stockfish_path()
         
         if not self.stockfish_path:
-            print("无法找到Stockfish引擎路径", file=sys.stderr)
+            print("\n*** 错误: 无法找到Stockfish引擎路径 ***", file=sys.stderr)
+            
+            # 列出当前目录结构
+            print("\n当前目录结构:", file=sys.stderr)
+            try:
+                for root, dirs, files in os.walk(".", topdown=True, followlinks=False):
+                    level = root.count(os.sep)
+                    indent = ' ' * 4 * level
+                    print(f"{indent}{os.path.basename(root)}/", file=sys.stderr)
+                    sub_indent = ' ' * 4 * (level + 1)
+                    for f in files:
+                        print(f"{sub_indent}{f}", file=sys.stderr)
+            except Exception as e:
+                print(f"\n列出目录结构时出错: {e}", file=sys.stderr)
+            
+            # 尝试查找系统中的stockfish
+            print("\n尝试在系统中查找stockfish:", file=sys.stderr)
+            try:
+                result = subprocess.run(['find', '/', '-name', 'stockfish', '-type', 'f', '-perm', '/u+x'], 
+                                      capture_output=True, text=True, timeout=5)
+                if result.stdout:
+                    print(result.stdout, file=sys.stderr)
+                else:
+                    print("\u672a找到可执行的stockfish文件", file=sys.stderr)
+            except Exception as e:
+                print(f"\u6267行find命令时出错: {e}", file=sys.stderr)
+            
             raise FileNotFoundError("无法找到Stockfish引擎")
         
-        print(f"使用Stockfish路径: {self.stockfish_path}", file=sys.stderr)
+        print(f"\n*** 最终使用Stockfish路径: {self.stockfish_path} ***", file=sys.stderr)
+        print(f"Stockfish文件存在: {os.path.exists(self.stockfish_path)}", file=sys.stderr)
+        print(f"Stockfish文件可执行: {os.access(self.stockfish_path, os.X_OK)}", file=sys.stderr)
         
         try:
+            # 显示文件信息
+            try:
+                file_stat = os.stat(self.stockfish_path)
+                print(f"Stockfish文件大小: {file_stat.st_size} 字节", file=sys.stderr)
+                print(f"Stockfish文件权限: {oct(file_stat.st_mode)}", file=sys.stderr)
+            except Exception as e:
+                print(f"\u83b7取文件信息时出错: {e}", file=sys.stderr)
+            
             # 启动Stockfish进程
+            print("\n---------- 尝试启动Stockfish进程 ----------", file=sys.stderr)
             self.process = subprocess.Popen(
                 self.stockfish_path,
                 universal_newlines=True,
@@ -46,11 +91,22 @@ class StockfishWrapper:
             atexit.register(self.quit)
             
             # 设置引擎参数
+            print("\n---------- 配置Stockfish引擎参数 ----------", file=sys.stderr)
             self._configure_engine()
             
-            print("Stockfish引擎成功初始化", file=sys.stderr)
+            print("\n*** Stockfish引擎成功初始化 ***", file=sys.stderr)
         except Exception as e:
-            print(f"启动Stockfish引擎失败: {e}", file=sys.stderr)
+            print(f"\n*** 启动Stockfish引擎失败: {e} ***", file=sys.stderr)
+            print("\n尝试手动测试Stockfish执行文件:", file=sys.stderr)
+            try:
+                test_result = subprocess.run([self.stockfish_path, "--version"], 
+                                          capture_output=True, text=True, timeout=2)
+                print(f"\u8fd4回码: {test_result.returncode}", file=sys.stderr)
+                print(f"\u6807准输出: {test_result.stdout}", file=sys.stderr)
+                print(f"\u9519误输出: {test_result.stderr}", file=sys.stderr)
+            except Exception as test_e:
+                print(f"\u624b动测试失败: {test_e}", file=sys.stderr)
+            
             raise
     
     def _find_stockfish_path(self):
